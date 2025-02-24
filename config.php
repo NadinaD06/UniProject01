@@ -1,8 +1,0 @@
-<?php
-return [
-    'DB_HOST' => 'localhost',
-    'DB_NAME' => 'your_database',
-    'DB_USER' => 'your_username',
-    'DB_PASS' => 'your_password',
-];
-?>
