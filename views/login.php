@@ -1,0 +1,58 @@
+<?php
+// login.php
+session_start();
+// Redirect if already logged in
+if (isset($_SESSION['user_id'])) {
+    header("Location: feed.php");
+    exit();
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtSpace - Login</title>
+    <link rel="stylesheet" href="../assets/css/login.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <a href="/index.php" class="logo-link">
+            <h1>ArtSpace</h1>
+        </a>
+        <h2>Welcome Back</h2>
+        <p>Share your art, grow your skills, and join a community that supports your creative journey.</p>
+        
+        <form id="loginForm" action="../controllers/auth/login_process.php" method="POST">
+            <?php
+            if (isset($_SESSION['error'])) {
+                echo '<div class="error-message">' . htmlspecialchars($_SESSION['error']) . '</div>';
+                unset($_SESSION['error']);
+            }
+            ?>
+            <div>
+                <label for="username">Username or Email</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="password-container">
+                <label for="password">Password</label>
+                <div class="password-input-container">
+                    <input type="password" id="password" name="password" required>
+                    <i class="fas fa-eye toggle-password" onclick="togglePassword('password')"></i>
+                </div>
+            </div>
+            <div class="remember-me">
+                <input type="checkbox" id="rememberMe" name="rememberMe">
+                <label for="rememberMe">Remember Me</label>
+            </div>
+            <div>
+                <a href="forgot_password.php" class="forgot-password">Forgot Password?</a>
+            </div>
+            <button type="submit">Log In</button>
+        </form>
+        <p class="signup-link">Don't have an account? <a href="register.php">Sign up</a></p>
+    </div>
+    <script src="../assets/js/login.js"></script>
+</body>
+</html>
