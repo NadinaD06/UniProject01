@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtSpace Feed</title>
+    <link href="styles.css" rel="stylesheet">
+    <script src="post-interactions.js" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">ArtSpace</div>
+            <div class="nav-buttons">
+                <a href="/profile" class="login-btn">
+                    <img src="/api/placeholder/32/32" alt="Profile" style="width: 32px; height: 32px; border-radius: 50%;">
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <nav class="side-nav">
+        <ul class="side-nav-menu">
+            <li class="side-nav-item">
+                <a href="#" class="side-nav-link active">
+                    <i class="fas fa-home"></i>
+                    Home
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="#" class="side-nav-link">
+                    <i class="fas fa-search"></i>
+                    Search
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="#" class="side-nav-link">
+                    <i class="fas fa-compass"></i>
+                    Explore
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="#" class="side-nav-link">
+                    <i class="far fa-heart"></i>
+                    Notifications
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="#" class="side-nav-link">
+                    <i class="far fa-user"></i>
+                    Profile
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="feed-container">
+        <div class="post" data-post-id="1">
+            <div class="post-header">
+                <img src="/api/placeholder/32/32" alt="Artist" class="profile-pic">
+                <span>digital_dreams</span>
+                <span class="artist-level">Professional Artist</span>
+            </div>
+            <img src="/api/placeholder/470/470" alt="Digital Art" class="post-image">
+            <div class="post-actions">
+                <button class="like-btn"><i class="far fa-heart"></i></button>
+                <button class="comment-btn"><i class="far fa-comment"></i></button>
+                <button class="share-btn"><i class="far fa-paper-plane"></i></button>
+            </div>        
+            <div class="engagement-stats">
+                <span class="like-count">1,234 likes</span>
+                <span class="comment-count">89 comments</span>
+            </div>        
+            <div class="post-caption">
+                <span>digital_dreams</span>
+                Latest environment concept for my upcoming project ✨ #DigitalArt #ConceptArt #Environment
+            </div>
+            <div class="comments-section">
+                <div class="comments-list">
+                </div>
+                <form class="comment-form">
+                    <input type="text" class="comment-input" placeholder="Add a comment...">
+                    <button type="submit" class="comment-submit">Post</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="post" data-post-id="2">
+            <div class="post-header">
+                <img src="/api/placeholder/32/32" alt="Artist" class="profile-pic">
+                <span>watercolor_wonders</span>
+                <span class="artist-level">Learning Artist</span>
+            </div>
+            <img src="/api/placeholder/470/470" alt="Watercolor Art" class="post-image">
+            <div class="post-actions">
+                <button class="like-btn"><i class="far fa-heart"></i></button>
+                <button class="comment-btn"><i class="far fa-comment"></i></button>
+                <button class="share-btn"><i class="far fa-paper-plane"></i></button>
+            </div>
+            <div class="engagement-stats">
+                <span class="like-count">856 likes</span>
+                <span class="comment-count">42 comments</span>
+            </div>
+            <div class="post-caption">
+                <span>watercolor_wonders</span>
+                Experimenting with new watercolor techniques today 🎨 Would love some feedback! #WatercolorArt #ArtProgress
+            </div>
+            <div class="comments-section">
+                <div class="comments-list">
+                </div>
+                <form class="comment-form">
+                    <input type="text" class="comment-input" placeholder="Add a comment...">
+                    <button type="submit" class="comment-submit">Post</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <a href="/create" class="create-post">
+        <i class="fas fa-plus"></i>
+    </a>
+    <div id="toast-container"></div>
+</body>
+</html>
