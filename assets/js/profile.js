@@ -271,6 +271,14 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = 'edit_profile.php';
         });
     }
+
+    // Create Post functionality
+    const createPostBtn = document.querySelector('.create-post-btn');
+    if (createPostBtn) {
+        createPostBtn.addEventListener('click', () => {
+            window.location.href = 'createPost.html';
+        });
+    }
     
     // Message functionality
     const messageBtn = document.querySelector('.message-btn');

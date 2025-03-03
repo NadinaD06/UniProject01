@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtSpace - Create Post</title>
+    <link rel="stylesheet" href="../assets/css/create_post.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <header class="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="feed.php">
+                    <h1>ArtSpace</h1>
+                </a>
+            </div>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="feed.html"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="explore.html"><i class="fas fa-compass"></i> Explore</a></li>
+                    <li><a href="notifications.html"><i class="fas fa-bell"></i> Notifications</a></li>
+                    <li><a href="messages.html"><i class="fas fa-envelope"></i> Messages</a></li>
+                    <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+                </ul>
+            </nav>
+            <div class="search-box">
+                <input type="text" placeholder="Search ArtSpace...">
+                <button type="submit"><i class="fas fa-search"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="create-post-container">
+        <div class="create-post-card">
+            <h2>Share Your Artwork</h2>
+            <p class="subtitle">Showcase your creativity to the ArtSpace community</p>
+            
+            <form id="createPostForm" action="../controllers/posts/create_post.php" method="POST" enctype="multipart/form-data">
+                <div class="upload-section">
+                    <div class="upload-preview" id="uploadPreview">
+                        <i class="fas fa-image"></i>
+                        <p>Upload your artwork</p>
+                        <p class="upload-hint">Click to browse or drag and drop</p>
+                    </div>
+                    <input type="file" id="artworkFile" name="artwork_image" accept="image/*" class="file-input">
+                    <div class="image-preview" id="imagePreview" style="display: none;">
+                        <img src="" id="previewImg" alt="Preview">
+                        <button type="button" class="remove-image" id="removeImage"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="artworkTitle">Title</label>
+                    <input type="text" id="artworkTitle" name="title" placeholder="Give your artwork a title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="artworkDescription">Description</label>
+                    <textarea id="artworkDescription" name="description" placeholder="Tell us about your artwork (materials, inspiration, techniques...)" rows="4"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="artworkCategory">Category</label>
+                        <select id="artworkCategory" name="category" required>
+                            <option value="" disabled selected>Select a category</option>
+                            <option value="digital">Digital Art</option>
+                            <option value="painting">Painting</option>
+                            <option value="drawing">Drawing</option>
+                            <option value="sculpture">Sculpture</option>
+                            <option value="photography">Photography</option>
+                            <option value="mixed_media">Mixed Media</option>
+                            <option value="illustration">Illustration</option>
+                            <option value="concept_art">Concept Art</option>
+                            <option value="pixel_art">Pixel Art</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group half">
+                        <label for="artworkTags">Tags</label>
+                        <input type="text" id="artworkTags" name="tags" placeholder="Add tags (separate with commas)">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="toggle-container">
+                        <label class="toggle-label" for="commentsEnabled">Enable comments</label>
+                        <label class="switch">
+                            <input type="checkbox" id="commentsEnabled" name="comments_enabled" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="toggle-container">
+                        <label class="toggle-label" for="showMaterials">I used AI tools to create this artwork</label>
+                        <label class="switch">
+                            <input type="checkbox" id="usedAI" name="used_ai">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group ai-tools" id="aiToolsSection" style="display: none;">
+                    <label for="aiTools">AI tools used</label>
+                    <input type="text" id="aiTools" name="ai_tools" placeholder="List the AI tools you used">
+                </div>
+
+                <div class="form-group">
+                    <div class="toggle-container">
+                        <label class="toggle-label" for="nsfwContent">This artwork contains mature content</label>
+                        <label class="switch">
+                            <input type="checkbox" id="nsfwContent" name="nsfw">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button type="button" class="cancel-btn" onclick="window.location.href='feed.php'">Cancel</button>
+                    <button type="submit" class="post-btn">Share Artwork</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="post-guidelines">
+            <h3>Posting Guidelines</h3>
+            <ul>
+                <li><i class="fas fa-check"></i> Share your original artwork or properly credit sources</li>
+                <li><i class="fas fa-check"></i> Be honest about AI tools used in creation</li>
+                <li><i class="fas fa-check"></i> Mark mature content appropriately</li>
+                <li><i class="fas fa-check"></i> Respect copyright and intellectual property</li>
+                <li><i class="fas fa-check"></i> Maximum file size: 10MB</li>
+                <li><i class="fas fa-check"></i> Supported formats: JPG, PNG, GIF</li>
+            </ul>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="about.php">About</a>
+                <a href="terms.php">Terms of Service</a>
+                <a href="privacy.php">Privacy Policy</a>
+                <a href="help.php">Help Center</a>
+                <a href="contact.php">Contact Us</a>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2025 ArtSpace. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../assets/js/create_post.js"></script>
+</body>
+</html>
