@@ -1,5 +1,5 @@
 <?php
-// login.php
+// forgot_password.php
 session_start();
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
@@ -8,5 +8,5 @@ if (isset($_SESSION['user_id'])) {
 }
 
 // Include the HTML file
-include('login.html');
+include('forgot_password.html');
 ?>
