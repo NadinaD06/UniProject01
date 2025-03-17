@@ -9,7 +9,7 @@
 </head>
 <body>
     <nav class="navbar">
-        <a href="welcome.html" class="logo-link">
+        <a href="index.php" class="logo-link">
             <h1>ArtSpace</h1>
         </a>
     </nav>
@@ -20,52 +20,61 @@
             <p>Connect with artists and share your creative journey</p>
         </div>
 
-        <form id="registerForm" onsubmit="return validateForm(event)">
+        <form id="registerForm" action="../controllers/auth/register_process.php" method="POST" onsubmit="return validateForm(event)">
+            <div id="errorContainer" class="error-message" style="display: none;"></div>
+            
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" class="input-field" required minlength="3" maxlength="20" placeholder="Choose a unique username">
+                <input type="text" id="username" name="username" class="input-field" required minlength="3" maxlength="20" placeholder="Choose a unique username">
             </div>
 
             <div class="form-group">
                 <label for="email">Email Address</label>
-                <input type="email" id="email" class="input-field" required placeholder="Enter your email">
+                <input type="email" id="email" name="email" class="input-field" required placeholder="Enter your email">
             </div>
 
             <div class="form-group">
                 <label for="password">Password</label>
                 <div class="input-group">
-                    <input type="password" id="password" class="input-field" required minlength="8" placeholder="Create a strong password">
+                    <input type="password" id="password" name="password" class="input-field" required minlength="8" placeholder="Create a strong password">
                     <i class="fas fa-eye" onclick="togglePassword('password')"></i>
+                </div>
+                <div class="password-strength">
+                    <div class="strength-bar-container">
+                        <div id="strengthBar" class="strength-bar"></div>
+                    </div>
+                    <span id="strengthText" class="strength-text">Enter a password</span>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="confirmPassword">Confirm Password</label>
                 <div class="input-group">
-                    <input type="password" id="confirmPassword" class="input-field" required placeholder="Confirm your password">
+                    <input type="password" id="confirmPassword" name="confirmPassword" class="input-field" required placeholder="Confirm your password">
                     <i class="fas fa-eye" onclick="togglePassword('confirmPassword')"></i>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="age">Age</label>
-                <input type="number" id="age" class="input-field" required min="16" placeholder="Must be 16 or older">
+                <input type="number" id="age" name="age" class="input-field" required min="16" placeholder="Must be 16 or older">
             </div>
 
             <div class="form-group">
                 <label>Art Interests (Select all that apply)</label>
                 <div class="art-interests">
-                    <span class="art-interest" onclick="toggleInterest(this)">Digital Art</span>
-                    <span class="art-interest" onclick="toggleInterest(this)">Traditional</span>
-                    <span class="art-interest" onclick="toggleInterest(this)">Photography</span>
-                    <span class="art-interest" onclick="toggleInterest(this)">3D Art</span>
-                    <span class="art-interest" onclick="toggleInterest(this)">Illustration</span>
+                    <span class="art-interest" onclick="toggleInterest(this)" data-interest="Digital Art">Digital Art</span>
+                    <span class="art-interest" onclick="toggleInterest(this)" data-interest="Traditional">Traditional</span>
+                    <span class="art-interest" onclick="toggleInterest(this)" data-interest="Photography">Photography</span>
+                    <span class="art-interest" onclick="toggleInterest(this)" data-interest="3D Art">3D Art</span>
+                    <span class="art-interest" onclick="toggleInterest(this)" data-interest="Illustration">Illustration</span>
                 </div>
+                <input type="hidden" id="interests" name="interests" value="[]">
             </div>
 
             <div class="form-group">
                 <label for="bio">Short Bio</label>
-                <textarea id="bio" class="input-field" rows="3" maxlength="200" placeholder="Tell us about yourself and your art (optional)"></textarea>
+                <textarea id="bio" name="bio" class="input-field" rows="3" maxlength="200" placeholder="Tell us about yourself and your art (optional)"></textarea>
             </div>
 
             <button type="submit" class="register-btn">Create Account</button>
@@ -76,123 +85,10 @@
                 <a href="/privacy">Privacy Policy</a>
             </p>
         </form>
+        
+        <p>Already have an account? <a href="login.php">Log in</a></p>
     </div>
 
-    <script>
-        function validateForm(event) {
-            event.preventDefault();
-            
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const age = parseInt(document.getElementById('age').value);
-            
-            if (password !== confirmPassword) {
-                alert('Passwords do not match!');
-                return false;
-            }
-            
-            if (age < 16) {
-                alert('You must be at least 16 years old to register.');
-                return false;
-            }
-            
-            // Gather form data
-            const formData = {
-                username: document.getElementById('username').value,
-                email: document.getElementById('email').value,
-                password: document.getElementById('password').value,
-                age: age,
-                bio: document.getElementById('bio').value,
-                interests: Array.from(document.querySelectorAll('.art-interest.selected'))
-                    .map(el => el.textContent)
-            };
-
-            // Show loading state
-            const submitButton = document.querySelector('.register-btn');
-            const originalText = submitButton.textContent;
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
-
-            // Simulate API call (replace with actual API endpoint)
-            setTimeout(() => {
-                try {
-                    // Validate email format
-                    if (!validateEmail(formData.email)) {
-                        throw new Error('Invalid email format');
-                    }
-
-                    // Validate username
-                    if (!validateUsername(formData.username)) {
-                        throw new Error('Username must be 3-20 characters and contain only letters, numbers, and underscores');
-                    }
-
-                    // Validate password strength
-                    if (!validatePassword(formData.password)) {
-                        throw new Error('Password must be at least 8 characters and include uppercase, lowercase, number, and special character');
-                    }
-
-                    // Success scenario
-                    console.log('Account created:', formData);
-                    window.location.href = '/welcome'; // Redirect to welcome page
-
-                } catch (error) {
-                    // Error handling
-                    submitButton.disabled = false;
-                    submitButton.textContent = originalText;
-                    showError(error.message);
-                }
-            }, 1500);
-
-            return false;
-        }
-
-        function validateEmail(email) {
-            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-        }
-
-        function validateUsername(username) {
-            return /^[a-zA-Z0-9_]{3,20}$/.test(username);
-        }
-
-        function validatePassword(password) {
-            return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password);
-        }
-
-        function showError(message) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-text';
-            errorDiv.style.padding = '1rem';
-            errorDiv.style.marginTop = '1rem';
-            errorDiv.style.backgroundColor = 'rgba(255,107,107,0.1)';
-            errorDiv.style.borderRadius = '0.5rem';
-            errorDiv.textContent = message;
-
-            const form = document.getElementById('registerForm');
-            form.appendChild(errorDiv);
-
-            setTimeout(() => {
-                errorDiv.remove();
-            }, 5000);
-        }
-
-        function togglePassword(inputId) {
-            const input = document.getElementById(inputId);
-            const icon = input.nextElementSibling;
-            
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                input.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
-            }
-        }
-
-        function toggleInterest(element) {
-            element.classList.toggle('selected');
-        }
-    </script>
+    <script src="/assets/js/register.js"></script>
 </body>
 </html>

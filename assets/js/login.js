@@ -1,42 +1,33 @@
-document.getElementById('loginForm').addEventListener('submit', async function(event) {
-    event.preventDefault();
-    
+document.getElementById('loginForm').addEventListener('submit', function (event) {
+    event.preventDefault(); // Prevent default form submission
+
+    // Gather form data
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
-    
-    if (!username || !password) {
-        alert('Please fill in all fields');
-        return;
-    }
-    
-    try {
-        const formData = new FormData();
-        formData.append('username', username);
-        formData.append('password', password);
-        
-        const response = await fetch('login.php', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            window.location.href = 'dashboard.php';
-        } else {
-            alert(data.message || 'Login failed');
-        }
-    } catch (error) {
-        alert('An error occurred during login');
-    }
-});
+    const rememberMe = document.getElementById('rememberMe').checked;
 
-function togglePassword(fieldId) {
-    const passwordField = document.getElementById(fieldId);
-    const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
-    passwordField.setAttribute('type', type);
-    
-    const icon = passwordField.nextElementSibling;
-    icon.classList.toggle('fa-eye');
-    icon.classList.toggle('fa-eye-slash');
-}
+    // Create an AJAX request
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '../controller/login_process.php', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+    // Handle the server response
+    xhr.onload = function () {
+        if (xhr.status === 200) {
+            const response = JSON.parse(xhr.responseText);
+            if (response.success) {
+                // Redirect to a dashboard or display a success message
+                alert('Login successful! Redirecting...');
+                window.location.href = 'dashboard.html';
+            } else {
+                // Display error message
+                alert('Error: ' + response.message);
+            }
+        } else {
+            console.error('Error: ' + xhr.statusText);
+        }
+    };
+
+    // Send the request with the form data
+    xhr.send(`username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&rememberMe=${rememberMe}`);
+});

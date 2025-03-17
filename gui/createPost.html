@@ -11,7 +11,7 @@
     <header class="main-header">
         <div class="header-container">
             <div class="logo">
-                <a href="feed.php">
+                <a href="feed.html">
                     <h1>ArtSpace</h1>
                 </a>
             </div>
@@ -36,7 +36,7 @@
             <h2>Share Your Artwork</h2>
             <p class="subtitle">Showcase your creativity to the ArtSpace community</p>
             
-            <form id="createPostForm" action="../controllers/posts/create_post.php" method="POST" enctype="multipart/form-data">
+            <form id="createPostForm" action="../controllers/posts/createPost_process.php" method="POST" enctype="multipart/form-data">
                 <div class="upload-section">
                     <div class="upload-preview" id="uploadPreview">
                         <i class="fas fa-image"></i>
@@ -95,7 +95,7 @@
 
                 <div class="form-group">
                     <div class="toggle-container">
-                        <label class="toggle-label" for="showMaterials">I used AI tools to create this artwork</label>
+                        <label class="toggle-label" for="usedAI">I used AI tools to create this artwork</label>
                         <label class="switch">
                             <input type="checkbox" id="usedAI" name="used_ai">
                             <span class="slider round"></span>
@@ -119,7 +119,7 @@
                 </div>
 
                 <div class="button-group">
-                    <button type="button" class="cancel-btn" onclick="window.location.href='feed.php'">Cancel</button>
+                    <button type="button" class="cancel-btn" onclick="window.location.href='feed.html'">Cancel</button>
                     <button type="submit" class="post-btn">Share Artwork</button>
                 </div>
             </form>
@@ -141,11 +141,11 @@
     <footer class="main-footer">
         <div class="footer-container">
             <div class="footer-links">
-                <a href="about.php">About</a>
-                <a href="terms.php">Terms of Service</a>
-                <a href="privacy.php">Privacy Policy</a>
-                <a href="help.php">Help Center</a>
-                <a href="contact.php">Contact Us</a>
+                <a href="about.html">About</a>
+                <a href="terms.html">Terms of Service</a>
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="help.html">Help Center</a>
+                <a href="contact.html">Contact Us</a>
             </div>
             <div class="copyright">
                 <p>&copy; 2025 ArtSpace. All rights reserved.</p>
@@ -153,6 +153,143 @@
         </div>
     </footer>
 
-    <script src="../assets/js/create_post.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Image upload preview functionality
+            const artworkFile = document.getElementById('artworkFile');
+            const uploadPreview = document.getElementById('uploadPreview');
+            const imagePreview = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImg');
+            const removeImage = document.getElementById('removeImage');
+
+            // Click on the upload area to trigger file input
+            uploadPreview.addEventListener('click', function() {
+                artworkFile.click();
+            });
+
+            // Handle drag and drop
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadPreview.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadPreview.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadPreview.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                uploadPreview.classList.add('highlight');
+            }
+
+            function unhighlight() {
+                uploadPreview.classList.remove('highlight');
+            }
+
+            uploadPreview.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files.length) {
+                    artworkFile.files = files;
+                    updatePreview(files[0]);
+                }
+            }
+
+            // Preview image when selected
+            artworkFile.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    updatePreview(this.files[0]);
+                }
+            });
+
+            function updatePreview(file) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    uploadPreview.style.display = 'none';
+                    imagePreview.style.display = 'block';
+                }
+                
+                reader.readAsDataURL(file);
+            }
+
+            // Remove image
+            removeImage.addEventListener('click', function() {
+                artworkFile.value = '';
+                previewImg.src = '';
+                imagePreview.style.display = 'none';
+                uploadPreview.style.display = 'flex';
+            });
+
+            // Show/hide AI tools section based on checkbox
+            const usedAICheckbox = document.getElementById('usedAI');
+            const aiToolsSection = document.getElementById('aiToolsSection');
+            
+            usedAICheckbox.addEventListener('change', function() {
+                aiToolsSection.style.display = this.checked ? 'block' : 'none';
+            });
+
+            // Form submission with validation and AJAX
+            const form = document.getElementById('createPostForm');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Basic validation
+                const title = document.getElementById('artworkTitle').value;
+                const category = document.getElementById('artworkCategory').value;
+                const artworkFile = document.getElementById('artworkFile').files;
+                
+                if (!title) {
+                    alert('Please enter a title for your artwork.');
+                    return;
+                }
+                
+                if (!category) {
+                    alert('Please select a category for your artwork.');
+                    return;
+                }
+                
+                if (!artworkFile || artworkFile.length === 0) {
+                    alert('Please upload an image of your artwork.');
+                    return;
+                }
+                
+                // Submit form with AJAX
+                const formData = new FormData(form);
+                
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message and redirect
+                        alert(data.message);
+                        window.location.href = 'profile.html'; // Redirect to profile page
+                    } else {
+                        // Show error message
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while posting your artwork. Please try again.');
+                });
+            });
+        });
+    </script>
 </body>
 </html>

@@ -1,228 +1,206 @@
-let typingTimer;
-const doneTypingInterval = 500;
-
-// Sanitize input to prevent XSS and SQL injection
-function sanitizeInput(input) {
-    return input.replace(/['"\\;()<>]/g, '').trim();
-}
-
-// Username validation
-document.getElementById('username').addEventListener('keyup', function() {
-    clearTimeout(typingTimer);
-    const username = this.value;
+document.addEventListener('DOMContentLoaded', function() {
+    const registerForm = document.getElementById('registerForm');
+    const passwordInput = document.getElementById('password');
+    const strengthBar = document.getElementById('strengthBar');
+    const strengthText = document.getElementById('strengthText');
     
-    if (username) {
-        typingTimer = setTimeout(() => checkUsername(sanitizeInput(username)), doneTypingInterval);
-    }
-});
-
-async function checkUsername(username) {
-    const statusElement = document.getElementById('usernameStatus');
-    
-    if (username.length < 3) {
-        statusElement.textContent = '✗ Username must be at least 3 characters';
-        statusElement.className = 'status-message error';
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/check-username', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ username: username })
+    // Password strength checker (if elements exist)
+    if (passwordInput && strengthBar && strengthText) {
+        passwordInput.addEventListener('input', function() {
+            checkPasswordStrength(this.value);
         });
-        
-        const data = await response.json();
-        statusElement.textContent = data.available ? '✓ Username available' : '✗ Username taken';
-        statusElement.className = 'status-message ' + (data.available ? 'success' : 'error');
-    } catch (error) {
-        statusElement.textContent = 'Error checking username';
-        statusElement.className = 'status-message error';
     }
-}
 
-// Email validation
-document.getElementById('email').addEventListener('blur', function() {
-    const email = sanitizeInput(this.value);
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const statusElement = document.getElementById('emailStatus');
-    
-    if (emailRegex.test(email)) {
-        checkEmail(email);
-    } else {
-        statusElement.textContent = '✗ Invalid email format';
-        statusElement.className = 'status-message error';
-    }
-});
-
-async function checkEmail(email) {
-    const statusElement = document.getElementById('emailStatus');
-    try {
-        const response = await fetch('/api/check-email', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email: email })
+    // Form submission
+    if (registerForm) {
+        registerForm.addEventListener('submit', function(event) {
+            return validateForm(event);
         });
-        
-        const data = await response.json();
-        statusElement.textContent = data.available ? '✓ Email available' : '✗ Email already registered';
-        statusElement.className = 'status-message ' + (data.available ? 'success' : 'error');
-    } catch (error) {
-        statusElement.textContent = 'Error checking email';
-        statusElement.className = 'status-message error';
-    }
-}
-
-// Age validation
-document.getElementById('age').addEventListener('input', function() {
-    const age = parseInt(this.value);
-    const statusElement = document.getElementById('ageStatus');
-    
-    if (age < 13) {
-        statusElement.textContent = '✗ Must be 13 or older to register';
-        statusElement.className = 'status-message error';
-    } else if (age > 120) {
-        statusElement.textContent = '✗ Please enter a valid age';
-        statusElement.className = 'status-message error';
-    } else {
-        statusElement.textContent = '✓ Valid age';
-        statusElement.className = 'status-message success';
     }
 });
 
-// Password strength check
-document.getElementById('password').addEventListener('input', function() {
-    const password = this.value;
-    const strengthElement = document.getElementById('passwordStrength');
-    
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    
-    let strength = 0;
-    let message = '';
-    
-    if (password.length >= 8) strength++;
-    if (hasUpperCase && hasLowerCase) strength++;
-    if (hasNumbers) strength++;
-    if (hasSpecialChar) strength++;
-    
-    switch(strength) {
-        case 0:
-        case 1:
-            message = '✗ Weak password';
-            strengthElement.className = 'status-message error';
-            break;
-        case 2:
-            message = '⚠ Moderate password';
-            strengthElement.className = 'status-message warning';
-            break;
-        case 3:
-            message = '✓ Strong password';
-            strengthElement.className = 'status-message success';
-            break;
-        case 4:
-            message = '✓ Very strong password';
-            strengthElement.className = 'status-message success';
-            break;
-    }
-    
-    strengthElement.textContent = message;
-});
-
-// Password matching validation
-document.getElementById('confirmPassword').addEventListener('input', checkPasswordMatch);
-document.getElementById('password').addEventListener('input', checkPasswordMatch);
-
-function checkPasswordMatch() {
-    const password = document.getElementById('password').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-    const matchStatus = document.getElementById('passwordMatch');
-    
-    if (confirmPassword) {
-        if (password === confirmPassword) {
-            matchStatus.textContent = '✓ Passwords match';
-            matchStatus.className = 'status-message success';
-        } else {
-            matchStatus.textContent = '✗ Passwords do not match';
-            matchStatus.className = 'status-message error';
-        }
-    }
-}
-
-// Toggle password visibility
-function togglePassword(fieldId) {
-    const passwordField = document.getElementById(fieldId);
-    const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
-    passwordField.setAttribute('type', type);
-}
-
-// Form validation
+// Validation functions
 function validateForm(event) {
     event.preventDefault();
     
-    const username = sanitizeInput(document.getElementById('username').value);
-    const email = sanitizeInput(document.getElementById('email').value);
-    const age = parseInt(document.getElementById('age').value);
     const password = document.getElementById('password').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
-
-    if (!username || !email || !age || !password || !confirmPassword) {
-        alert('Please fill in all fields');
-        return false;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        alert('Please enter a valid email address');
-        return false;
-    }
-
-    if (age < 13 || age > 120) {
-        alert('Please enter a valid age (13-120)');
-        return false;
-    }
-
+    const age = parseInt(document.getElementById('age').value);
+    
     if (password !== confirmPassword) {
-        alert('Passwords do not match');
+        showError('Passwords do not match!');
         return false;
     }
-
-    if (password.length < 8) {
-        alert('Password must be at least 8 characters long');
+    
+    if (age < 16) {
+        showError('You must be at least 16 years old to register.');
         return false;
     }
+    
+    // Collect selected interests and set to hidden input
+    const selectedInterests = Array.from(document.querySelectorAll('.art-interest.selected'))
+        .map(el => el.getAttribute('data-interest') || el.textContent);
+    
+    // Set interests to hidden input if it exists
+    const interestsInput = document.getElementById('interests');
+    if (interestsInput) {
+        interestsInput.value = JSON.stringify(selectedInterests);
+    }
 
-    submitForm(username, email, age, password);
+    // Show loading state
+    const submitButton = document.querySelector('.register-btn');
+    const originalText = submitButton.textContent;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
+
+    // Run validation checks
+    try {
+        // Validate email format
+        if (!validateEmail(document.getElementById('email').value)) {
+            throw new Error('Invalid email format');
+        }
+
+        // Validate username
+        if (!validateUsername(document.getElementById('username').value)) {
+            throw new Error('Username must be 3-20 characters and contain only letters, numbers, and underscores');
+        }
+
+        // Validate password strength
+        if (!validatePassword(password)) {
+            throw new Error('Password must be at least 8 characters and include uppercase, lowercase, number, and special character');
+        }
+
+        // If all validations pass, submit the form
+        document.getElementById('registerForm').submit();
+
+    } catch (error) {
+        // Error handling
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
+        showError(error.message);
+        return false;
+    }
 }
 
-async function submitForm(username, email, age, password) {
-    try {
-        const response = await fetch('/api/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                username: username,
-                email: email,
-                age: age,
-                password: password
-            })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            window.location.href = '/dashboard';
-        } else {
-            alert(data.message || 'Registration failed');
-        }
-    } catch (error) {
-        alert('An error occurred during registration');
+function validateEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validateUsername(username) {
+    return /^[a-zA-Z0-9_]{3,20}$/.test(username);
+}
+
+function validatePassword(password) {
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password);
+}
+
+function checkPasswordStrength(password) {
+    const strengthBar = document.getElementById('strengthBar');
+    const strengthText = document.getElementById('strengthText');
+    
+    if (!strengthBar || !strengthText) return;
+    
+    let strength = 0;
+    let feedback = '';
+    
+    // Length check
+    if (password.length >= 8) {
+        strength += 1;
     }
+    
+    // Contains lowercase
+    if (/[a-z]/.test(password)) {
+        strength += 1;
+    }
+    
+    // Contains uppercase
+    if (/[A-Z]/.test(password)) {
+        strength += 1;
+    }
+    
+    // Contains number
+    if (/\d/.test(password)) {
+        strength += 1;
+    }
+    
+    // Contains special character
+    if (/[@$!%*?&]/.test(password)) {
+        strength += 1;
+    }
+    
+    // Update UI based on strength
+    let percentage = (strength / 5) * 100;
+    strengthBar.style.width = percentage + '%';
+    
+    if (strength === 0) {
+        strengthBar.style.backgroundColor = '#ddd';
+        feedback = 'Enter a password';
+    } else if (strength < 3) {
+        strengthBar.style.backgroundColor = '#ff6b6b';
+        feedback = 'Weak';
+    } else if (strength < 5) {
+        strengthBar.style.backgroundColor = '#ffaa33';
+        feedback = 'Moderate';
+    } else {
+        strengthBar.style.backgroundColor = '#4ECDC4';
+        feedback = 'Strong';
+    }
+    
+    strengthText.textContent = feedback;
+}
+
+function showError(message) {
+    // Try to find existing error container
+    let errorContainer = document.getElementById('errorContainer');
+    
+    // If error container doesn't exist, create a new error div
+    if (!errorContainer) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.style.padding = '1rem';
+        errorDiv.style.marginTop = '1rem';
+        errorDiv.style.backgroundColor = 'rgba(255,107,107,0.1)';
+        errorDiv.style.borderRadius = '0.5rem';
+        errorDiv.textContent = message;
+
+        const form = document.getElementById('registerForm');
+        
+        // Check if there's already an error message
+        const existingError = form.querySelector('.error-message');
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        form.insertBefore(errorDiv, form.firstChild);
+
+        setTimeout(() => {
+            errorDiv.remove();
+        }, 5000);
+    } else {
+        // Use existing error container
+        errorContainer.textContent = message;
+        errorContainer.style.display = 'block';
+        
+        // Scroll to error
+        errorContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    const icon = input.nextElementSibling;
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+function toggleInterest(element) {
+    element.classList.toggle('selected');
 }
