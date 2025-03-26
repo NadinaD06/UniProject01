@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtSpace - Explore</title>
+    <link rel="stylesheet" href="../assets/css/explore.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <header class="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="feed.html">
+                    <h1>ArtSpace</h1>
+                </a>
+            </div>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="feed.html"><i class="fas fa-home"></i> Home</a></li>
+                    <li class="active"><a href="explore.html"><i class="fas fa-compass"></i> Explore</a></li>
+                    <li><a href="notifications.html"><i class="fas fa-bell"></i> Notifications</a></li>
+                    <li><a href="messages.html"><i class="fas fa-envelope"></i> Messages</a></li>
+                    <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+                </ul>
+            </nav>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search ArtSpace...">
+                <button type="submit"><i class="fas fa-search"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="explore-container">
+        <section class="explore-header">
+            <h2>Explore</h2>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="trending">Trending</button>
+                <button class="filter-btn" data-filter="recent">Recent</button>
+                <button class="filter-btn" data-filter="popular">Popular</button>
+                <button class="filter-btn" data-filter="following">Following</button>
+            </div>
+            <div class="category-filter">
+                <select id="categorySelect">
+                    <option value="">All Categories</option>
+                    <option value="digital">Digital Art</option>
+                    <option value="painting">Painting</option>
+                    <option value="drawing">Drawing</option>
+                    <option value="sculpture">Sculpture</option>
+                    <option value="photography">Photography</option>
+                    <option value="mixed_media">Mixed Media</option>
+                    <option value="illustration">Illustration</option>
+                    <option value="concept_art">Concept Art</option>
+                    <option value="pixel_art">Pixel Art</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+        </section>
+
+        <section class="trending-tags">
+            <h3>Popular Tags</h3>
+            <div class="tags-container" id="tagsContainer">
+                <!-- Tags will be loaded here -->
+                <div class="tag-skeleton"></div>
+                <div class="tag-skeleton"></div>
+                <div class="tag-skeleton"></div>
+                <div class="tag-skeleton"></div>
+                <div class="tag-skeleton"></div>
+                <div class="tag-skeleton"></div>
+                <div class="tag-skeleton"></div>
+                <div class="tag-skeleton"></div>
+            </div>
+        </section>
+
+        <section class="explore-grid" id="exploreGrid">
+            <!-- Artworks will be loaded here -->
+            <div class="artwork-skeleton"></div>
+            <div class="artwork-skeleton"></div>
+            <div class="artwork-skeleton"></div>
+            <div class="artwork-skeleton"></div>
+            <div class="artwork-skeleton"></div>
+            <div class="artwork-skeleton"></div>
+            <div class="artwork-skeleton"></div>
+            <div class="artwork-skeleton"></div>
+            <div class="artwork-skeleton"></div>
+            <div class="artwork-skeleton"></div>
+            <div class="artwork-skeleton"></div>
+            <div class="artwork-skeleton"></div>
+        </section>
+
+        <div class="load-more">
+            <button id="loadMoreBtn" class="load-more-btn">Load More</button>
+        </div>
+    </main>
+
+    <!-- Artist Preview Modal -->
+    <div class="modal" id="artistPreviewModal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div class="artist-preview">
+                <div class="artist-header">
+                    <img src="/api/placeholder/80/80" alt="Artist" class="artist-avatar" id="modalArtistAvatar">
+                    <div class="artist-info">
+                        <h3 id="modalArtistName">Artist Name</h3>
+                        <p id="modalArtistBio">Artist bio loading...</p>
+                        <div class="artist-stats">
+                            <div class="stat-item">
+                                <span class="stat-value" id="modalArtistFollowers">0</span>
+                                <span class="stat-label">Followers</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value" id="modalArtistPosts">0</span>
+                                <span class="stat-label">Posts</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="artist-preview-actions">
+                    <button class="follow-btn" id="modalFollowBtn"><i class="fas fa-user-plus"></i> Follow</button>
+                    <a href="#" class="view-profile-btn" id="modalProfileLink">View Profile</a>
+                    <button class="message-btn" id="modalMessageBtn"><i class="fas fa-envelope"></i> Message</button>
+                </div>
+                <div class="artist-preview-gallery" id="modalArtistGallery">
+                    <!-- Artist recent works will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Artwork Detail Modal -->
+    <div class="modal" id="artworkDetailModal">
+        <div class="modal-content artwork-modal">
+            <span class="close-modal">&times;</span>
+            <div class="artwork-detail">
+                <div class="artwork-image-container">
+                    <img src="" alt="Artwork" id="modalArtworkImage">
+                </div>
+                <div class="artwork-info">
+                    <div class="artwork-header">
+                        <div class="artwork-artist">
+                            <img src="/api/placeholder/40/40" alt="Artist" id="modalArtworkArtistAvatar">
+                            <a href="#" id="modalArtworkArtistName">Artist Name</a>
+                        </div>
+                        <div class="artwork-actions">
+                            <button class="like-btn" id="modalLikeBtn"><i class="far fa-heart"></i> <span id="modalLikeCount">0</span></button>
+                            <button class="save-btn" id="modalSaveBtn"><i class="far fa-bookmark"></i></button>
+                            <button class="share-btn" id="modalShareBtn"><i class="far fa-share-square"></i></button>
+                        </div>
+                    </div>
+                    <div class="artwork-content">
+                        <h3 id="modalArtworkTitle">Artwork Title</h3>
+                        <p id="modalArtworkDescription">Artwork description loading...</p>
+                        <div class="artwork-meta">
+                            <div class="artwork-category" id="modalArtworkCategory">Category: <span>Digital Art</span></div>
+                            <div class="artwork-date" id="modalArtworkDate">Posted: <span>June 15, 2023</span></div>
+                        </div>
+                        <div class="artwork-tags" id="modalArtworkTags">
+                            <!-- Tags will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="artwork-comments">
+                        <h4>Comments (<span id="modalCommentCount">0</span>)</h4>
+                        <div class="comments-container" id="modalComments">
+                            <!-- Comments will be loaded here -->
+                        </div>
+                        <form id="commentForm" class="comment-form">
+                            <input type="text" id="commentInput" placeholder="Add a comment...">
+                            <button type="submit">Post</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="createPost.html" class="create-post-btn">
+        <i class="fas fa-plus"></i>
+    </a>
+
+    <footer class="main-footer">
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="about.html">About</a>
+                <a href="terms.html">Terms of Service</a>
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="help.html">Help Center</a>
+                <a href="contact.html">Contact Us</a>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2025 ArtSpace. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../assets/js/explore.js"></script>
+</body>
+</html>
