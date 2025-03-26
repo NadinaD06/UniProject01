@@ -12,3 +12,5 @@
 - Use prepared statements for all database queries
 - Follow PSR-4 autoloading standards
 - Document all functions and classes
+
+## adding a change for the sake of my PR
