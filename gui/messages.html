@@ -35,7 +35,7 @@
         <div class="contacts-panel">
             <div class="contacts-header">
                 <h2>Messages</h2>
-                <button class="new-message-btn"><i class="fas fa-edit"></i></button>
+                <button class="new-message-btn" id="newMessageBtn" title="New Message" onclick="window.location.href='new_message.html'"><i class="fas fa-edit"></i></button>
             </div>
             <div class="search-messages">
                 <i class="fas fa-search"></i>
@@ -57,7 +57,7 @@
                 </div>
                 <h3>Your Messages</h3>
                 <p>Send private messages to other artists and collectors</p>
-                <button class="start-message-btn"><i class="fas fa-edit"></i> New Message</button>
+                <button class="start-message-btn" onclick="window.location.href='new_message.html'"><i class="fas fa-edit"></i> New Message</button>
             </div>
 
             <div class="chat-content" id="chatContent" style="display: none;">
@@ -137,8 +137,23 @@
                     <!-- Search results will be loaded here -->
                 </div>
             </div>
+            <div class="modal-actions">
+                <a href="new_message.html" class="full-page-btn">Compose in Full Page View</a>
+            </div>
         </div>
     </div>
+
+    <!-- Options Dropdown -->
+    <div class="dropdown-menu" id="chatOptionsMenu" style="display: none;">
+        <ul>
+            <li><a href="#" id="clearChatBtn">Clear conversation</a></li>
+            <li><a href="#" id="reportUserBtn">Report user</a></li>
+            <li><a href="#" id="blockFromChatBtn">Block user</a></li>
+        </ul>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container"></div>
 
     <footer class="main-footer">
         <div class="footer-container">

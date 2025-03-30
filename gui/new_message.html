@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtSpace - New Message</title>
+    <link rel="stylesheet" href="../assets/css/new_message.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <header class="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="feed.html">
+                    <h1>ArtSpace</h1>
+                </a>
+            </div>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="feed.html"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="explore.html"><i class="fas fa-compass"></i> Explore</a></li>
+                    <li><a href="notifications.html"><i class="fas fa-bell"></i> Notifications</a></li>
+                    <li class="active"><a href="messages.html"><i class="fas fa-envelope"></i> Messages</a></li>
+                    <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+                </ul>
+            </nav>
+            <div class="search-box">
+                <input type="text" placeholder="Search ArtSpace...">
+                <button type="submit"><i class="fas fa-search"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="new-message-container">
+        <div class="page-header">
+            <div class="header-content">
+                <h1>New Message</h1>
+                <p>Send a private message to another creator</p>
+            </div>
+        </div>
+        
+        <div class="message-content-container">
+            <div class="message-form-container">
+                <form id="newMessageForm" class="message-form">
+                    <div class="form-group recipient-group">
+                        <label for="recipient">To:</label>
+                        <div class="recipient-input-container">
+                            <input type="text" id="recipient" name="recipient" placeholder="Search for a user..." autocomplete="off">
+                            <input type="hidden" name="recipient_id" id="recipientId">
+                            <div class="recipient-suggestions" id="recipientSuggestions"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="messageContent">Message:</label>
+                        <textarea id="messageContent" name="message_content" rows="6" placeholder="Type your message here..."></textarea>
+                    </div>
+                    
+                    <div class="message-options">
+                        <div class="message-attachments">
+                            <button type="button" class="attachment-btn" title="Add attachment"><i class="fas fa-paperclip"></i></button>
+                            <button type="button" class="emoji-btn" title="Add emoji"><i class="far fa-smile"></i></button>
+                        </div>
+                        <div class="message-actions">
+                            <button type="button" class="cancel-btn" id="cancelBtn">Cancel</button>
+                            <button type="submit" class="send-btn" id="sendBtn">Send Message</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="message-sidebar">
+                <div class="sidebar-section">
+                    <h3>Trending Creators</h3>
+                    <div class="user-suggestions">
+                        <div class="user-suggestion" data-id="1" data-username="ArtisticSoul">
+                            <img src="/api/placeholder/40/40" alt="ArtisticSoul" class="user-avatar">
+                            <div class="user-info">
+                                <span class="user-name">ArtisticSoul</span>
+                                <span class="user-meta">1.2K followers</span>
+                            </div>
+                            <button type="button" class="select-user-btn"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div class="user-suggestion" data-id="2" data-username="CreativeJourney">
+                            <img src="/api/placeholder/40/40" alt="CreativeJourney" class="user-avatar">
+                            <div class="user-info">
+                                <span class="user-name">CreativeJourney</span>
+                                <span class="user-meta">985 followers</span>
+                            </div>
+                            <button type="button" class="select-user-btn"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div class="user-suggestion" data-id="3" data-username="DigitalArtistry">
+                            <img src="/api/placeholder/40/40" alt="DigitalArtistry" class="user-avatar">
+                            <div class="user-info">
+                                <span class="user-name">DigitalArtistry</span>
+                                <span class="user-meta">763 followers</span>
+                            </div>
+                            <button type="button" class="select-user-btn"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3>Recent Interactions</h3>
+                    <div class="user-suggestions">
+                        <div class="user-suggestion" data-id="4" data-username="ColorMaster">
+                            <img src="/api/placeholder/40/40" alt="ColorMaster" class="user-avatar">
+                            <div class="user-info">
+                                <span class="user-name">ColorMaster</span>
+                                <span class="user-meta">Liked your post 2h ago</span>
+                            </div>
+                            <button type="button" class="select-user-btn"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div class="user-suggestion" data-id="5" data-username="SketchMaster">
+                            <img src="/api/placeholder/40/40" alt="SketchMaster" class="user-avatar">
+                            <div class="user-info">
+                                <span class="user-name">SketchMaster</span>
+                                <span class="user-meta">Commented yesterday</span>
+                            </div>
+                            <button type="button" class="select-user-btn"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div class="user-suggestion" data-id="6" data-username="ArtisticVision">
+                            <img src="/api/placeholder/40/40" alt="ArtisticVision" class="user-avatar">
+                            <div class="user-info">
+                                <span class="user-name">ArtisticVision</span>
+                                <span class="user-meta">Follows you</span>
+                            </div>
+                            <button type="button" class="select-user-btn"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3>Tips</h3>
+                    <div class="tips-list">
+                        <div class="tip">
+                            <i class="fas fa-info-circle"></i>
+                            <p>Be respectful and follow our community guidelines when messaging other creators.</p>
+                        </div>
+                        <div class="tip">
+                            <i class="fas fa-star"></i>
+                            <p>You can send images and files by clicking the attachment button.</p>
+                        </div>
+                        <div class="tip">
+                            <i class="fas fa-shield-alt"></i>
+                            <p>Report any inappropriate messages to our support team.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <footer class="main-footer">
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="about.html">About</a>
+                <a href="terms.html">Terms of Service</a>
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="help.html">Help Center</a>
+                <a href="contact.html">Contact Us</a>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2025 ArtSpace. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../assets/js/new_message.js"></script>
+</body>
+</html>
