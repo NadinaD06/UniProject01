@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtSpace - Friends & Connections</title>
+    <link rel="stylesheet" href="../assets/css/friends.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <header class="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="feed.html">
+                    <h1>ArtSpace</h1>
+                </a>
+            </div>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="feed.html"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="explore.html"><i class="fas fa-compass"></i> Explore</a></li>
+                    <li><a href="notifications.html"><i class="fas fa-bell"></i> Notifications</a></li>
+                    <li><a href="messages.html"><i class="fas fa-envelope"></i> Messages</a></li>
+                    <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+                </ul>
+            </nav>
+            <div class="search-box">
+                <input type="text" placeholder="Search ArtSpace...">
+                <button type="submit"><i class="fas fa-search"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="friends-container">
+        <div class="friends-sidebar">
+            <h2>Connections</h2>
+            <ul class="sidebar-menu">
+                <li class="active"><a href="#following"><i class="fas fa-user-friends"></i> Following</a></li>
+                <li><a href="#followers"><i class="fas fa-users"></i> Followers</a></li>
+                <li><a href="#requests"><i class="fas fa-user-plus"></i> Follow Requests <span class="count">3</span></a></li>
+                <li><a href="#suggestions"><i class="fas fa-magic"></i> Suggested Artists</a></li>
+                <li><a href="#blocked"><i class="fas fa-ban"></i> Blocked Users</a></li>
+            </ul>
+            <div class="find-artists">
+                <h3>Find Artists</h3>
+                <div class="search-artists">
+                    <input type="text" id="artistSearch" placeholder="Search by name or username">
+                    <button><i class="fas fa-search"></i></button>
+                </div>
+                <div class="filter-options">
+                    <select id="categoryFilter">
+                        <option value="">All Categories</option>
+                        <option value="digital">Digital Art</option>
+                        <option value="painting">Painting</option>
+                        <option value="drawing">Drawing</option>
+                        <option value="sculpture">Sculpture</option>
+                        <option value="photography">Photography</option>
+                        <option value="mixed_media">Mixed Media</option>
+                        <option value="illustration">Illustration</option>
+                        <option value="concept_art">Concept Art</option>
+                        <option value="pixel_art">Pixel Art</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="friends-content">
+            <div class="tab-content active" id="following">
+                <div class="tab-header">
+                    <h2>People You Follow <span class="count">(125)</span></h2>
+                    <div class="tab-actions">
+                        <div class="sort-by">
+                            <label for="sortFollowing">Sort by:</label>
+                            <select id="sortFollowing">
+                                <option value="recent">Recently Added</option>
+                                <option value="name">Name</option>
+                                <option value="active">Recently Active</option>
+                            </select>
+                        </div>
+                        <div class="view-toggle">
+                            <button class="view-btn active" data-view="grid"><i class="fas fa-th"></i></button>
+                            <button class="view-btn" data-view="list"><i class="fas fa-list"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="user-grid">
+                    <!-- User Card 1 -->
+                    <div class="user-card">
+                        <div class="user-card-header">
+                            <img src="/api/placeholder/80/80" alt="User Avatar" class="user-avatar">
+                            <button class="following-btn">Following <i class="fas fa-check"></i></button>
+                        </div>
+                        <div class="user-info">
+                            <h3 class="user-name"><a href="profile.html">ArtisticSoul</a></h3>
+                            <p class="user-bio">Digital artist specializing in fantasy and sci-fi concepts</p>
+                        </div>
+                        <div class="mutual-info">
+                            <span>5 mutual followers</span>
+                        </div>
+                        <div class="user-actions">
+                            <button class="message-btn"><i class="fas fa-envelope"></i> Message</button>
+                            <div class="dropdown">
+                                <button class="more-btn"><i class="fas fa-ellipsis-h"></i></button>
+                                <div class="dropdown-content">
+                                    <a href="#">View Profile</a>
+                                    <a href="#">Add to List</a>
+                                    <a href="#">Unfollow</a>
+                                    <a href="#">Mute</a>
+                                    <a href="#">Block</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Card 2 -->
+                    <div class="user-card">
+                        <div class="user-card-header">
+                            <img src="/api/placeholder/80/80" alt="User Avatar" class="user-avatar">
+                            <button class="following-btn">Following <i class="fas fa-check"></i></button>
+                        </div>
+                        <div class="user-info">
+                            <h3 class="user-name"><a href="profile.html">ColorMaster</a></h3>
+                            <p class="user-bio">Traditional painter exploring color theory and light</p>
+                        </div>
+                        <div class="mutual-info">
+                            <span>12 mutual followers</span>
+                        </div>
+                        <div class="user-actions">
+                            <button class="message-btn"><i class="fas fa-envelope"></i> Message</button>
+                            <div class="dropdown">
+                                <button class="more-btn"><i class="fas fa-ellipsis-h"></i></button>
+                                <div class="dropdown-content">
+                                    <a href="#">View Profile</a>
+                                    <a href="#">Add to List</a>
+                                    <a href="#">Unfollow</a>
+                                    <a href="#">Mute</a>
+                                    <a href="#">Block</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional User Cards -->
+                    <!-- Repeat the user-card structure for more users -->
+                </div>
+
+                <div class="load-more">
+                    <button class="load-more-btn">Load More</button>
+                </div>
+            </div>
+
+            <div class="tab-content" id="followers">
+                <div class="tab-header">
+                    <h2>Your Followers <span class="count">(253)</span></h2>
+                    <div class="tab-actions">
+                        <div class="sort-by">
+                            <label for="sortFollowers">Sort by:</label>
+                            <select id="sortFollowers">
+                                <option value="recent">Recently Added</option>
+                                <option value="name">Name</option>
+                                <option value="active">Recently Active</option>
+                            </select>
+                        </div>
+                        <div class="view-toggle">
+                            <button class="view-btn active" data-view="grid"><i class="fas fa-th"></i></button>
+                            <button class="view-btn" data-view="list"><i class="fas fa-list"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="user-grid">
+                    <!-- Follower User Cards -->
+                    <!-- Similar structure to following but with "Follow Back" buttons for users you don't follow -->
+                </div>
+
+                <div class="load-more">
+                    <button class="load-more-btn">Load More</button>
+                </div>
+            </div>
+
+            <div class="tab-content" id="requests">
+                <div class="tab-header">
+                    <h2>Follow Requests <span class="count">(3)</span></h2>
+                    <p class="tab-description">People who requested to follow you. Your account is partially private.</p>
+                </div>
+                <div class="requests-list">
+                    <!-- Request 1 -->
+                    <div class="request-card">
+                        <div class="request-user">
+                            <img src="/api/placeholder/60/60" alt="User Avatar" class="request-avatar">
+                            <div class="request-user-info">
+                                <h3 class="user-name"><a href="profile.html">ArtisticExplorer</a></h3>
+                                <p class="user-bio">Exploring various artistic styles and mediums</p>
+                                <span class="request-time">Requested 2 days ago</span>
+                            </div>
+                        </div>
+                        <div class="mutual-info">
+                            <span><i class="fas fa-user-friends"></i> 3 mutual connections</span>
+                        </div>
+                        <div class="request-actions">
+                            <button class="accept-btn">Accept</button>
+                            <button class="decline-btn">Decline</button>
+                            <button class="view-profile-btn">View Profile</button>
+                        </div>
+                    </div>
+
+                    <!-- Request 2 -->
+                    <div class="request-card">
+                        <div class="request-user">
+                            <img src="/api/placeholder/60/60" alt="User Avatar" class="request-avatar">
+                            <div class="request-user-info">
+                                <h3 class="user-name"><a href="profile.html">CreativeJourney</a></h3>
+                                <p class="user-bio">Digital artist focusing on character design</p>
+                                <span class="request-time">Requested 3 days ago</span>
+                            </div>
+                        </div>
+                        <div class="mutual-info">
+                            <span><i class="fas fa-user-friends"></i> 7 mutual connections</span>
+                        </div>
+                        <div class="request-actions">
+                            <button class="accept-btn">Accept</button>
+                            <button class="decline-btn">Decline</button>
+                            <button class="view-profile-btn">View Profile</button>
+                        </div>
+                    </div>
+
+                    <!-- Request 3 -->
+                    <div class="request-card">
+                        <div class="request-user">
+                            <img src="/api/placeholder/60/60" alt="User Avatar" class="request-avatar">
+                            <div class="request-user-info">
+                                <h3 class="user-name"><a href="profile.html">VisualStories</a></h3>
+                                <p class="user-bio">Illustrator and storyteller</p>
+                                <span class="request-time">Requested 5 days ago</span>
+                            </div>
+                        </div>
+                        <div class="mutual-info">
+                            <span><i class="fas fa-user-friends"></i> No mutual connections</span>
+                        </div>
+                        <div class="request-actions">
+                            <button class="accept-btn">Accept</button>
+                            <button class="decline-btn">Decline</button>
+                            <button class="view-profile-btn">View Profile</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="suggestions">
+                <div class="tab-header">
+                    <h2>Suggested Artists</h2>
+                    <p class="tab-description">Artists you might be interested in based on your activity and interests</p>
+                </div>
+                <div class="suggestions-grid">
+                    <!-- Suggestion Cards -->
+                    <!-- Similar to user cards but with "Follow" buttons -->
+                </div>
+
+                <div class="load-more">
+                    <button class="load-more-btn">Show More Suggestions</button>
+                </div>
+            </div>
+
+            <div class="tab-content" id="blocked">
+                <div class="tab-header">
+                    <h2>Blocked Users</h2>
+                    <p class="tab-description">Blocked users cannot see your profile, posts, or interact with you.</p>
+                </div>
+                <div class="blocked-list">
+                    <!-- Blocked User Items -->
+                    <!-- List of blocked users with options to unblock -->
+                </div>
+
+                <div class="empty-state" id="noBlockedUsers">
+                    <i class="fas fa-ban empty-icon"></i>
+                    <h3>No Blocked Users</h3>
+                    <p>You haven't blocked any users yet.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add to List Modal -->
+    <div class="modal" id="addToListModal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Add to List</h2>
+            <div class="list-selection">
+                <div class="existing-lists">
+                    <h3>Your Lists</h3>
+                    <ul class="lists">
+                        <li>
+                            <input type="checkbox" id="list1" name="list1">
+                            <label for="list1">Favorite Artists</label>
+                        </li>
+                        <li>
+                            <input type="checkbox" id="list2" name="list2">
+                            <label for="list2">Digital Art Inspiration</label>
+                        </li>
+                        <li>
+                            <input type="checkbox" id="list3" name="list3">
+                            <label for="list3">Character Designers</label>
+                        </li>
+                    </ul>
+                </div>
+                <div class="create-list">
+                    <h3>Create New List</h3>
+                    <div class="form-group">
+                        <input type="text" id="newListName" placeholder="List name">
+                    </div>
+                    <div class="form-group">
+                        <select id="listPrivacy">
+                            <option value="private">Private (Only you)</option>
+                            <option value="public">Public (Anyone)</option>
+                        </select>
+                    </div>
+                    <button class="create-list-btn">Create</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="cancel-btn">Cancel</button>
+                <button class="save-btn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="main-footer">
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="about.html">About</a>
+                <a href="terms.html">Terms of Service</a>
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="help.html">Help Center</a>
+                <a href="contact.html">Contact Us</a>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2025 ArtSpace. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../assets/js/friends.js"></script>
+</body>
+</html>

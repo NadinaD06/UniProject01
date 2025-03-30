@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtSpace - Artwork Details</title>
+    <link rel="stylesheet" href="../assets/css/single_post.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <header class="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <a href="feed.html">
+                    <h1>ArtSpace</h1>
+                </a>
+            </div>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="feed.html"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="explore.html"><i class="fas fa-compass"></i> Explore</a></li>
+                    <li><a href="notifications.html"><i class="fas fa-bell"></i> Notifications</a></li>
+                    <li><a href="messages.html"><i class="fas fa-envelope"></i> Messages</a></li>
+                    <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+                </ul>
+            </nav>
+            <div class="search-box">
+                <input type="text" placeholder="Search ArtSpace...">
+                <button type="submit"><i class="fas fa-search"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="artwork-container">
+        <div class="artwork-content">
+            <div class="artwork-header">
+                <div class="artwork-artist">
+                    <img src="/api/placeholder/48/48" alt="Artist Avatar" class="artist-avatar">
+                    <div class="artist-info">
+                        <div class="artist-name-follow">
+                            <a href="profile.html?id=123" class="artist-name">ArtistUsername</a>
+                            <button class="follow-btn" id="followBtn"><i class="fas fa-user-plus"></i> Follow</button>
+                        </div>
+                        <span class="post-time">Posted 2 hours ago</span>
+                    </div>
+                </div>
+                <div class="artwork-actions">
+                    <button class="action-btn" id="shareBtn"><i class="fas fa-share-alt"></i></button>
+                    <button class="action-btn" id="saveBtn"><i class="far fa-bookmark"></i></button>
+                    <div class="dropdown">
+                        <button class="action-btn" id="moreBtn"><i class="fas fa-ellipsis-h"></i></button>
+                        <div class="dropdown-content">
+                            <a href="#" id="reportLink">Report Post</a>
+                            <a href="#" id="copyLink">Copy Link</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="artwork-main">
+                <div class="artwork-image-container">
+                    <img src="/api/placeholder/800/600" alt="Artwork" class="artwork-image">
+                    <div class="ai-badge" id="aiBadge">AI Assisted</div>
+                </div>
+                <div class="artwork-info">
+                    <h1 class="artwork-title">Celestial Dreamscape</h1>
+                    <div class="artwork-meta">
+                        <span class="category">Digital Art</span>
+                        <span class="views"><i class="fas fa-eye"></i> 1,542 views</span>
+                    </div>
+                    <p class="artwork-description">
+                        A dreamlike celestial landscape featuring cosmic elements and ethereal lighting. This piece explores the boundaries between reality and imagination, creating a sense of wonder and possibility.
+                    </p>
+                    <div class="artwork-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Created with:</span>
+                            <span class="detail-value">Procreate, Photoshop</span>
+                        </div>
+                        <div class="detail-item" id="aiToolsDetail">
+                            <span class="detail-label">AI tools used:</span>
+                            <span class="detail-value">Midjourney (initial concept)</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Dimensions:</span>
+                            <span class="detail-value">3000 x 2000 px</span>
+                        </div>
+                    </div>
+                    <div class="artwork-tags">
+                        <a href="#" class="tag">#DigitalArt</a>
+                        <a href="#" class="tag">#ConceptArt</a>
+                        <a href="#" class="tag">#SciFi</a>
+                        <a href="#" class="tag">#SpaceArt</a>
+                        <a href="#" class="tag">#FantasyLandscape</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="engagement-stats">
+                <div class="stat-item" id="likeCounter">
+                    <i class="far fa-heart"></i>
+                    <span class="count">256</span>
+                    <span class="label">Likes</span>
+                </div>
+                <div class="stat-item" id="commentCounter">
+                    <i class="far fa-comment"></i>
+                    <span class="count">42</span>
+                    <span class="label">Comments</span>
+                </div>
+                <div class="stat-item">
+                    <i class="far fa-bookmark"></i>
+                    <span class="count">78</span>
+                    <span class="label">Saves</span>
+                </div>
+            </div>
+
+            <div class="engagement-actions">
+                <button class="engage-btn" id="likeBtn">
+                    <i class="far fa-heart"></i> Like
+                </button>
+                <button class="engage-btn" id="commentBtn">
+                    <i class="far fa-comment"></i> Comment
+                </button>
+                <button class="engage-btn" id="savePostBtn">
+                    <i class="far fa-bookmark"></i> Save
+                </button>
+            </div>
+
+            <div class="comments-section">
+                <h3>Comments (42)</h3>
+                <div class="comment-form">
+                    <img src="/api/placeholder/40/40" alt="Your Avatar" class="comment-avatar">
+                    <form id="addCommentForm">
+                        <input type="text" placeholder="Add a comment..." id="commentInput">
+                        <button type="submit">Post</button>
+                    </form>
+                </div>
+                <div class="comments-container">
+                    <!-- Comment 1 -->
+                    <div class="comment">
+                        <img src="/api/placeholder/40/40" alt="User Avatar" class="comment-avatar">
+                        <div class="comment-content">
+                            <div class="comment-header">
+                                <span class="comment-username">CreativeExplorer</span>
+                                <span class="comment-time">1 hour ago</span>
+                            </div>
+                            <p class="comment-text">The colors in this piece are absolutely breathtaking! I love how you've captured that ethereal glow in the background.</p>
+                            <div class="comment-actions">
+                                <button class="comment-action"><i class="far fa-heart"></i> 12</button>
+                                <button class="comment-action">Reply</button>
+                            </div>
+
+                            <!-- Replies to Comment 1 -->
+                            <div class="comment-replies">
+                                <div class="comment reply">
+                                    <img src="/api/placeholder/40/40" alt="Artist Avatar" class="comment-avatar">
+                                    <div class="comment-content">
+                                        <div class="comment-header">
+                                            <span class="comment-username">ArtistUsername</span>
+                                            <span class="comment-badge">Artist</span>
+                                            <span class="comment-time">45 minutes ago</span>
+                                        </div>
+                                        <p class="comment-text">Thank you so much! I spent a lot of time getting those colors just right.</p>
+                                        <div class="comment-actions">
+                                            <button class="comment-action"><i class="far fa-heart"></i> 3</button>
+                                            <button class="comment-action">Reply</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comment 2 -->
+                    <div class="comment">
+                        <img src="/api/placeholder/40/40" alt="User Avatar" class="comment-avatar">
+                        <div class="comment-content">
+                            <div class="comment-header">
+                                <span class="comment-username">ArtEnthusiast</span>
+                                <span class="comment-time">2 hours ago</span>
+                            </div>
+                            <p class="comment-text">What was your inspiration for this piece? The composition draws me in immediately!</p>
+                            <div class="comment-actions">
+                                <button class="comment-action"><i class="far fa-heart"></i> 8</button>
+                                <button class="comment-action">Reply</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Load More Comments Button -->
+                    <button class="load-more-comments">Load More Comments</button>
+                </div>
+            </div>
+        </div>
+
+        <aside class="related-artwork">
+            <h3>More from this artist</h3>
+            <div class="related-artwork-grid">
+                <a href="#" class="related-item">
+                    <img src="/api/placeholder/150/150" alt="Related Artwork">
+                </a>
+                <a href="#" class="related-item">
+                    <img src="/api/placeholder/150/150" alt="Related Artwork">
+                </a>
+                <a href="#" class="related-item">
+                    <img src="/api/placeholder/150/150" alt="Related Artwork">
+                </a>
+                <a href="#" class="related-item">
+                    <img src="/api/placeholder/150/150" alt="Related Artwork">
+                </a>
+            </div>
+
+            <h3>You might also like</h3>
+            <div class="similar-artwork-grid">
+                <div class="similar-item">
+                    <a href="#" class="similar-artwork-img">
+                        <img src="/api/placeholder/250/150" alt="Similar Artwork">
+                    </a>
+                    <div class="similar-artwork-info">
+                        <h4>Cosmic Journey</h4>
+                        <a href="#" class="similar-artist">SpaceArtist</a>
+                    </div>
+                </div>
+                <div class="similar-item">
+                    <a href="#" class="similar-artwork-img">
+                        <img src="/api/placeholder/250/150" alt="Similar Artwork">
+                    </a>
+                    <div class="similar-artwork-info">
+                        <h4>Nebula Dreams</h4>
+                        <a href="#" class="similar-artist">GalacticCreator</a>
+                    </div>
+                </div>
+                <div class="similar-item">
+                    <a href="#" class="similar-artwork-img">
+                        <img src="/api/placeholder/250/150" alt="Similar Artwork">
+                    </a>
+                    <div class="similar-artwork-info">
+                        <h4>Starlight Vision</h4>
+                        <a href="#" class="similar-artist">CosmicIllustrator</a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <footer class="main-footer">
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="about.html">About</a>
+                <a href="terms.html">Terms of Service</a>
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="help.html">Help Center</a>
+                <a href="contact.html">Contact Us</a>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2025 ArtSpace. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Report Modal -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Report Artwork</h2>
+            <form id="reportForm">
+                <div class="form-group">
+                    <label>Reason for reporting:</label>
+                    <select name="reportReason" required>
+                        <option value="" disabled selected>Select a reason</option>
+                        <option value="copyright">Copyright Infringement</option>
+                        <option value="inappropriate">Inappropriate Content</option>
+                        <option value="ai_disclosure">AI Usage Not Disclosed</option>
+                        <option value="spam">Spam</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Additional details:</label>
+                    <textarea name="reportDetails" rows="4" placeholder="Please provide any additional details about your report..."></textarea>
+                </div>
+                <button type="submit" class="submit-report">Submit Report</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="../assets/js/single_post.js"></script>
+</body>
+</html>
