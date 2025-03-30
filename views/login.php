@@ -1,12 +1,24 @@
 <?php
+/**
+ * Login Page
+ */
+
 // Start session
 session_start();
+
+// Include utility functions
+require_once '../includes/utilities.php';
 
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
     header("Location: feed.php");
     exit();
 }
+
+// Set page title and CSS
+$page_title = "ArtSpace - Login";
+$page_css = "login";
+$page_js = "login";
 
 // Check for error/success message from redirect
 $error_message = $_SESSION['error_message'] ?? null;
@@ -21,35 +33,13 @@ unset($_SESSION['success_message']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArtSpace - Login</title>
+    <title><?php echo $page_title; ?></title>
     <link rel="stylesheet" href="../assets/css/login.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        /* Additional styles for messages */
-        .status-message {
-            padding: 12px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-            font-size: 14px;
-            text-align: center;
-        }
-        
-        .status-message.error {
-            background-color: rgba(255, 107, 107, 0.1);
-            border-left: 4px solid #FF6B6B;
-            color: #d63031;
-        }
-        
-        .status-message.success {
-            background-color: rgba(46, 213, 115, 0.1);
-            border-left: 4px solid #2ed573;
-            color: #2ed573;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
-        <a href="index.php" class="logo-link">
+        <a href="../index.php" class="logo-link">
             <h1>ArtSpace</h1>
         </a>
         <h2>Welcome Back</h2>

@@ -1,73 +1,196 @@
 <?php
-// feed.php
+/**
+ * Feed Page
+ * Shows posts from followed users and trending content
+ */
+
+// Start session
 session_start();
-// Check if user is logged in
+
+// Include required files
+require_once '../includes/utilities.php';
+
+// Redirect if not logged in
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit();
+    $_SESSION['error_message'] = 'Please log in to view your feed';
+    header('Location: login.php');
+    exit;
 }
 
-// Include database connection
-require_once '../config/database.php';
+// Set page info
+$page_title = "ArtSpace - Your Feed";
+$page_css = "feed";
+$page_js = "feed";
 
-// Fetch user data
+// Get user ID
 $user_id = $_SESSION['user_id'];
-$stmt = $pdo->prepare("SELECT username, profile_image FROM users WHERE id = ?");
-$stmt->execute([$user_id]);
-$user = $stmt->fetch();
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArtSpace - Feed</title>
-    <link rel="stylesheet" href="/assets/css/feed.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-</head>
-<body>
-    <?php include '../includes/nav.php'; ?>
 
-    <main class="main-container">
-        <?php include '../includes/left_sidebar.php'; ?>
+<?php require_once '../includes/header.php'; ?>
 
-        <section class="feed">
-            <div class="stories-container">
-                <!-- Stories content -->
+<div class="main-container">
+    <div class="side-nav">
+        <ul class="side-nav-menu">
+            <li class="side-nav-item">
+                <a href="feed.php" class="side-nav-link active">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="explore.php" class="side-nav-link">
+                    <i class="fas fa-compass"></i>
+                    <span>Explore</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="notifications.php" class="side-nav-link">
+                    <i class="fas fa-bell"></i>
+                    <span>Notifications</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="messages.php" class="side-nav-link">
+                    <i class="fas fa-envelope"></i>
+                    <span>Messages</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="profile.php" class="side-nav-link">
+                    <i class="fas fa-user"></i>
+                    <span>Profile</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="left-column">
+        <div class="feed-filters">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="following">Following</button>
+            <button class="filter-btn" data-filter="trending">Trending</button>
+            
+            <div class="category-filters">
+                <select id="categoryFilter">
+                    <option value="">All Categories</option>
+                    <option value="digital-art">Digital Art</option>
+                    <option value="traditional">Traditional</option>
+                    <option value="photography">Photography</option>
+                    <option value="3d-art">3D Art</option>
+                    <option value="illustration">Illustration</option>
+                    <option value="animation">Animation</option>
+                    <option value="concept-art">Concept Art</option>
+                    <option value="character-design">Character Design</option>
+                </select>
             </div>
+        </div>
 
-            <div class="posts-grid" id="postsContainer">
-                <?php
-                // Fetch posts
-                $stmt = $pdo->prepare("
-                    SELECT p.*, u.username, u.profile_image 
-                    FROM posts p 
-                    JOIN users u ON p.user_id = u.id 
-                    ORDER BY p.created_at DESC 
-                    LIMIT 10
-                ");
-                $stmt->execute();
-                $posts = $stmt->fetchAll();
-
-                foreach ($posts as $post) {
-                    include '../includes/post_card.php';
-                }
-                ?>
+        <div class="stories-section">
+            <h3>Stories</h3>
+            <div class="stories-container" id="storiesContainer">
+                <!-- Story items will be loaded dynamically -->
+                <div class="story your-story">
+                    <div class="story-avatar">
+                        <img src="/api/placeholder/60/60" alt="Your story" id="yourStoryAvatar">
+                        <div class="add-story">
+                            <i class="fas fa-plus"></i>
+                        </div>
+                    </div>
+                    <span>Your Story</span>
+                </div>
+                
+                <!-- Story skeleton loaders -->
+                <?php for ($i = 0; $i < 5; $i++): ?>
+                <div class="story skeleton">
+                    <div class="story-avatar skeleton-circle"></div>
+                    <span class="skeleton-text"></span>
+                </div>
+                <?php endfor; ?>
             </div>
+        </div>
 
-            <button class="load-more" id="loadMoreBtn">Load More</button>
-        </section>
+        <div class="feed-posts" id="postsContainer">
+            <!-- Posts will be loaded dynamically -->
+            
+            <!-- Post skeleton loaders -->
+            <?php for ($i = 0; $i < 3; $i++): ?>
+            <div class="post-card skeleton">
+                <div class="post-header">
+                    <div class="post-user">
+                        <div class="skeleton-circle post-user-img"></div>
+                        <div class="post-user-info">
+                            <div class="skeleton-text"></div>
+                            <div class="skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="skeleton-image post-image-container"></div>
+                <div class="post-content">
+                    <div class="skeleton-text"></div>
+                    <div class="skeleton-text"></div>
+                    <div class="skeleton-text"></div>
+                </div>
+            </div>
+            <?php endfor; ?>
+        </div>
 
-        <?php include '../includes/right_sidebar.php'; ?>
-    </main>
+        <div class="load-more">
+            <button id="loadMoreBtn" disabled>Loading...</button>
+        </div>
+    </div>
 
-    <script>
-        // Pass PHP user data to JavaScript
-        const currentUser = {
-            id: <?php echo json_encode($_SESSION['user_id']); ?>,
-            username: <?php echo json_encode($user['username']); ?>
-        };
-    </script>
-    <script src="/assets/js/feed.js"></script>
-</body>
-</html>
+    <div class="right-column">
+        <div class="user-card">
+            <div class="user-info">
+                <img src="/api/placeholder/60/60" alt="Your Profile" id="sidebarUserAvatar">
+                <div>
+                    <h3 id="sidebarUsername"><?php echo htmlspecialchars($_SESSION['username']); ?></h3>
+                    <p id="sidebarUserBio">Your artistic journey</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="suggestions-section">
+            <div class="suggestions-header">
+                <h3>Suggested Artists</h3>
+                <a href="explore.php" class="see-all">See All</a>
+            </div>
+            <div class="artist-suggestions" id="artistSuggestions">
+                <!-- Artist suggestions will be loaded dynamically -->
+                
+                <!-- Suggestion skeleton loaders -->
+                <?php for ($i = 0; $i < 3; $i++): ?>
+                <div class="artist-card skeleton">
+                    <div class="skeleton-circle artist-img"></div>
+                    <div class="artist-info">
+                        <div class="skeleton-text"></div>
+                        <div class="skeleton-text"></div>
+                    </div>
+                    <div class="skeleton-button"></div>
+                </div>
+                <?php endfor; ?>
+            </div>
+        </div>
+
+        <div class="trending-tags">
+            <h3>Trending Tags</h3>
+            <div class="tags-list">
+                <a href="#" class="tag">#DigitalArt</a>
+                <a href="#" class="tag">#Illustration</a>
+                <a href="#" class="tag">#ConceptArt</a>
+                <a href="#" class="tag">#CharacterDesign</a>
+                <a href="#" class="tag">#Animation</a>
+                <a href="#" class="tag">#Watercolor</a>
+                <a href="#" class="tag">#StreetArt</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<a href="createPost.php" class="create-post-btn">
+    <i class="fas fa-plus"></i>
+</a>
+
+<div id="toast-container"></div>
+
+<?php require_once '../includes/footer.php'; ?>

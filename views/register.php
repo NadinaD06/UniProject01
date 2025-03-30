@@ -1,12 +1,24 @@
 <?php
+/**
+ * Registration Page
+ */
+
 // Start session
 session_start();
+
+// Include utility functions
+require_once '../includes/utilities.php';
 
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
     header("Location: feed.php");
     exit();
 }
+
+// Set page title and CSS
+$page_title = "Join ArtSpace - Connect with Artists";
+$page_css = "register";
+$page_js = "register";
 
 // Get any error/success messages
 $error_message = $_SESSION['error_message'] ?? null;
@@ -25,13 +37,13 @@ unset($_SESSION['form_data']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join ArtSpace - Connect with Artists</title>
+    <title><?php echo $page_title; ?></title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="../assets/css/register.css" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar">
-        <a href="index.php" class="logo-link">
+        <a href="../index.php" class="logo-link">
             <h1>ArtSpace</h1>
         </a>
     </nav>
@@ -54,7 +66,10 @@ unset($_SESSION['form_data']);
             </div>
         <?php endif; ?>
 
-        <form id="registerForm" action="../controllers/register_process.php" method="POST">
+        <form id="registerForm" action="../controllers/auth/register_process.php" method="POST">
+            <!-- Add CSRF token for security -->
+            <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
+            
             <div id="errorContainer" class="error-message" style="display: none;"></div>
             
             <div class="form-group">
@@ -105,11 +120,14 @@ unset($_SESSION['form_data']);
             <div class="form-group">
                 <label>Art Interests (Select all that apply)</label>
                 <div class="art-interests">
-                    <span class="art-interest" data-interest="Digital Art">Digital Art</span>
-                    <span class="art-interest" data-interest="Traditional">Traditional</span>
-                    <span class="art-interest" data-interest="Photography">Photography</span>
-                    <span class="art-interest" data-interest="3D Art">3D Art</span>
-                    <span class="art-interest" data-interest="Illustration">Illustration</span>
+                    <span class="art-interest" data-interest="Digital Art" onclick="toggleInterest(this)">Digital Art</span>
+                    <span class="art-interest" data-interest="Traditional" onclick="toggleInterest(this)">Traditional</span>
+                    <span class="art-interest" data-interest="Photography" onclick="toggleInterest(this)">Photography</span>
+                    <span class="art-interest" data-interest="3D Art" onclick="toggleInterest(this)">3D Art</span>
+                    <span class="art-interest" data-interest="Illustration" onclick="toggleInterest(this)">Illustration</span>
+                    <span class="art-interest" data-interest="Animation" onclick="toggleInterest(this)">Animation</span>
+                    <span class="art-interest" data-interest="Character Design" onclick="toggleInterest(this)">Character Design</span>
+                    <span class="art-interest" data-interest="Concept Art" onclick="toggleInterest(this)">Concept Art</span>
                 </div>
                 <input type="hidden" id="interests" name="interests" 
                     value="<?php echo htmlspecialchars($form_data['interests'] ?? '[]'); ?>">
@@ -130,7 +148,7 @@ unset($_SESSION['form_data']);
             </p>
         </form>
         
-        <p>Already have an account? <a href="login.php">Log in</a></p>
+        <p class="login-link">Already have an account? <a href="login.php">Log in</a></p>
     </div>
 
     <script src="../assets/js/register.js"></script>
