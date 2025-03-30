@@ -40,13 +40,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['email'] = $user['email'];
                 $_SESSION['is_admin'] = $user['is_admin'];
+                $_SESSION['last_activity'] = time();
                 
-                // Update last login time (if you want to add this column to your users table)
-                // $stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
-                // $stmt->execute([$user['id']]);
+                // Set remember me cookie if requested
+                if ($rememberMe) {
+                    $token = bin2hex(random_bytes(32));
+                    $expiry = time() + (30 * 24 * 60 * 60); // 30 days
+                    
+                    $stmt = $conn->prepare("INSERT INTO auth_tokens (user_id, token, expires_at) VALUES (:user_id, :token, :expires_at)");
+                    $stmt->bindParam(':user_id', $user['id']);
+                    $stmt->bindParam(':token', $token);
+                    $stmt->bindParam(':expires_at', date('Y-m-d H:i:s', $expiry));
+                    $stmt->execute();
+                    
+                    setcookie('remember_token', $token, $expiry, '/', '', false, true);
+                }
                 
                 // Return success response
-                echo json_encode(['success' => true, 'message' => 'Login successful!']);
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Login successful!',
+                    'redirect' => '../gui/feed.html'
+                ]);
             } else {
                 // Incorrect password
                 throw new Exception('Incorrect username or password.');
