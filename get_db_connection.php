@@ -3,9 +3,9 @@
 $config = require_once 'config/config.php';
 
 try {
-    // Connect to PostgreSQL database
+    // Connect to MySQL database
     $pdo = new PDO(
-        "pgsql:host={$config['DB_HOST']};dbname={$config['DB_NAME']};port=5432",
+        "mysql:host={$config['DB_HOST']};dbname={$config['DB_NAME']};charset=utf8mb4",
         $config['DB_USER'],
         $config['DB_PASS']
     );
