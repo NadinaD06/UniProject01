@@ -8,9 +8,9 @@ error_reporting(E_ALL);
 $config = require_once 'config/config.php';
 
 try {
-    // Connect to PostgreSQL database
+    // Connect to MySQL database
     $pdo = new PDO(
-        "pgsql:host={$config['DB_HOST']};dbname={$config['DB_NAME']};port=5432",
+        "mysql:host={$config['DB_HOST']};dbname={$config['DB_NAME']};charset=utf8mb4",
         $config['DB_USER'],
         $config['DB_PASS']
     );
@@ -24,82 +24,93 @@ try {
     $tables = [
         'users' => "
             CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
+                id INT AUTO_INCREMENT PRIMARY KEY,
                 username VARCHAR(50) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
                 email VARCHAR(100) NOT NULL UNIQUE,
-                age INTEGER,
+                age INT,
                 bio TEXT,
                 interests TEXT,
                 is_admin BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ",
         'posts' => "
             CREATE TABLE IF NOT EXISTS posts (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
                 content TEXT,
                 image_url VARCHAR(255),
                 location VARCHAR(255),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            );
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ",
         'comments' => "
             CREATE TABLE IF NOT EXISTS comments (
-                id SERIAL PRIMARY KEY,
-                post_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                post_id INT NOT NULL,
+                user_id INT NOT NULL,
                 content TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            );
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ",
         'likes' => "
             CREATE TABLE IF NOT EXISTS likes (
-                id SERIAL PRIMARY KEY,
-                post_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                post_id INT NOT NULL,
+                user_id INT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                UNIQUE(post_id, user_id)
-            );
+                UNIQUE KEY unique_like (post_id, user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        ",
+        'follows' => "
+            CREATE TABLE IF NOT EXISTS follows (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                follower_id INT NOT NULL,
+                followed_id INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (followed_id) REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE KEY unique_follow (follower_id, followed_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ",
         'messages' => "
             CREATE TABLE IF NOT EXISTS messages (
-                id SERIAL PRIMARY KEY,
-                sender_id INTEGER NOT NULL,
-                receiver_id INTEGER NOT NULL,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                sender_id INT NOT NULL,
+                receiver_id INT NOT NULL,
                 content TEXT NOT NULL,
                 sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
-            );
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ",
         'blocks' => "
             CREATE TABLE IF NOT EXISTS blocks (
-                id SERIAL PRIMARY KEY,
-                blocker_id INTEGER NOT NULL,
-                blocked_id INTEGER NOT NULL,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                blocker_id INT NOT NULL,
+                blocked_id INT NOT NULL,
                 blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (blocker_id) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY (blocked_id) REFERENCES users(id) ON DELETE CASCADE,
-                UNIQUE(blocker_id, blocked_id)
-            );
+                UNIQUE KEY unique_block (blocker_id, blocked_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ",
         'reports' => "
             CREATE TABLE IF NOT EXISTS reports (
-                id SERIAL PRIMARY KEY,
-                reporter_id INTEGER NOT NULL,
-                reported_id INTEGER NOT NULL,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                reporter_id INT NOT NULL,
+                reported_id INT NOT NULL,
                 reason VARCHAR(255) NOT NULL,
                 reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY (reported_id) REFERENCES users(id) ON DELETE CASCADE
-            );
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         "
     ];
  
