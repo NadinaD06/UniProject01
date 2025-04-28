@@ -1,8 +1,25 @@
 <?php
- 
-require_once 'get_db_connection.php';
- 
+// Enable error reporting
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Load configuration
+$config = require_once 'config/config.php';
+
 try {
+    // Connect to PostgreSQL database
+    $pdo = new PDO(
+        "pgsql:host={$config['DB_HOST']};dbname={$config['DB_NAME']};port=5432",
+        $config['DB_USER'],
+        $config['DB_PASS']
+    );
+    
+    // Set the PDO error mode to exception
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+    echo "Database connection successful!<br>";
+    
     // Array of table creation SQL statements
     $tables = [
         'users' => "
@@ -88,11 +105,15 @@ try {
  
     // Iterate through each table and create it if it doesn't exist
     foreach ($tables as $tableName => $createSQL) {
-        $pdo->exec($createSQL);
-        echo "Table '$tableName' is ready.\n";
+        try {
+            $pdo->exec($createSQL);
+            echo "Table '$tableName' is ready.<br>";
+        } catch (PDOException $e) {
+            echo "Error creating table '$tableName': " . $e->getMessage() . "<br>";
+        }
     }
  
 } catch (PDOException $e) {
-    echo 'Database setup failed: ' . $e->getMessage();
+    die("Database connection failed: " . $e->getMessage());
 }
 ?>
