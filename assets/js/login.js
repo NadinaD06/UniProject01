@@ -1,4 +1,31 @@
 document.addEventListener('DOMContentLoaded', function() {
+        // Check if user is already logged in
+        function checkSession() {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '../controller/check_session.php', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.loggedIn) {
+                        window.location.href = 'dashboard.html';
+                    }
+                }
+            };
+            xhr.send();
+        }
+        
+        // Call session check on page load
+        window.addEventListener('DOMContentLoaded', checkSession);
+        
+        // Password visibility toggle
+        function togglePassword(fieldId) {
+            const passwordField = document.getElementById(fieldId);
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+            } else {
+                passwordField.type = 'password';
+            }
+        }
     // Get the login form
     const loginForm = document.getElementById('loginForm');
     
