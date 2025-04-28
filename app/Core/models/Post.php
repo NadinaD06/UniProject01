@@ -1,457 +1,359 @@
 <?php
 /**
- * Post Model
- * Handles all post data operations
- */
-class Post {
-    private $conn;
-    
-    /**
-     * Constructor
-     * 
-     * @param PDO $db Database connection
-     */
-    public function __construct($db) {
-        $this->conn = $db;
-    }
+* app/Models/Post.php
+* Model for handling posts, likes, comments, and related operations
+**/
+
+namespace App\Models;
+
+use App\Core\Model;
+
+class Post extends Model {
+    protected $table = 'posts';
     
     /**
      * Get post by ID
      * 
-     * @param int $id Post ID
+     * @param int $postId Post ID
+     * @param int $userId Current user ID for personalized data
      * @return array|bool Post data or false if not found
      */
-    public function getPostById($id) {
-        $stmt = $this->conn->prepare("
+    public function getPost($postId, $userId = null) {
+        $sql = "
             SELECT 
-                p.id, p.user_id, p.title, p.description, p.image_url, 
-                p.category, p.tags, p.used_ai, p.ai_tools, p.comments_enabled,
-                p.nsfw, p.created_at, u.username, u.profile_picture
-            FROM posts p
-            JOIN users u ON p.user_id = u.id
-            WHERE p.id = :id
-        ");
-        $stmt->bindParam(':id', $id);
-        $stmt->execute();
+                p.*, 
+                u.username, u.profile_picture,
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
+                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count
+        ";
         
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        // Add personalized fields if user ID provided
+        if ($userId) {
+            $sql .= "
+                , (SELECT COUNT(*) FROM likes WHERE post_id = p.id AND user_id = ?) as user_liked
+                , (SELECT COUNT(*) FROM saved_posts WHERE post_id = p.id AND user_id = ?) as user_saved
+            ";
+        }
+        
+        $sql .= "
+            FROM {$this->table} p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.id = ?
+        ";
+        
+        $params = $userId ? [$userId, $userId, $postId] : [$postId];
+        
+        $post = $this->db->fetch($sql, $params);
+        
+        if ($post) {
+            // Add formatted properties
+            $post['created_at_formatted'] = date('F j, Y', strtotime($post['created_at']));
+            $post['author_username'] = $post['username'];
+            $post['author_profile_pic'] = $post['profile_picture'] ?: '/assets/images/default-avatar.png';
+            
+            // Convert numeric fields
+            $post['likes_count'] = (int)$post['likes_count'];
+            $post['comments_count'] = (int)$post['comments_count'];
+            
+            // Convert boolean fields
+            $post['comments_enabled'] = (bool)$post['comments_enabled'];
+            $post['used_ai'] = (bool)$post['used_ai'];
+            $post['nsfw'] = (bool)$post['nsfw'];
+            
+            if ($userId) {
+                $post['user_liked'] = (bool)$post['user_liked'];
+                $post['user_saved'] = (bool)$post['user_saved'];
+            }
+        }
+        
+        return $post;
     }
     
     /**
-     * Create new post
+     * Create a new post
      * 
      * @param array $postData Post data
      * @return int|bool New post ID or false on failure
      */
     public function createPost($postData) {
-        $stmt = $this->conn->prepare("
-            INSERT INTO posts (
-                user_id, title, description, image_url, category, 
-                tags, comments_enabled, used_ai, ai_tools, nsfw, 
-                created_at
-            ) VALUES (
-                :user_id, :title, :description, :image_url, :category, 
-                :tags, :comments_enabled, :used_ai, :ai_tools, :nsfw, 
-                NOW()
-            )
-        ");
+        // Ensure boolean fields are set
+        $postData['comments_enabled'] = isset($postData['comments_enabled']) ? 1 : 0;
+        $postData['used_ai'] = isset($postData['used_ai']) ? 1 : 0;
+        $postData['nsfw'] = isset($postData['nsfw']) ? 1 : 0;
         
-        $commentsEnabled = isset($postData['comments_enabled']) ? 1 : 0;
-        $usedAI = isset($postData['used_ai']) ? 1 : 0;
-        $nsfw = isset($postData['nsfw']) ? 1 : 0;
+        // Set created date
+        $postData['created_at'] = date('Y-m-d H:i:s');
         
-        $stmt->bindParam(':user_id', $postData['user_id']);
-        $stmt->bindParam(':title', $postData['title']);
-        $stmt->bindParam(':description', $postData['description'] ?? null);
-        $stmt->bindParam(':image_url', $postData['image_url']);
-        $stmt->bindParam(':category', $postData['category']);
-        $stmt->bindParam(':tags', $postData['tags'] ?? null);
-        $stmt->bindParam(':comments_enabled', $commentsEnabled);
-        $stmt->bindParam(':used_ai', $usedAI);
-        $stmt->bindParam(':ai_tools', $postData['ai_tools'] ?? null);
-        $stmt->bindParam(':nsfw', $nsfw);
-        
-        if ($stmt->execute()) {
-            return $this->conn->lastInsertId();
-        }
-        
-        return false;
+        return $this->create($postData);
     }
     
     /**
-     * Update post
+     * Update a post
      * 
      * @param int $postId Post ID
-     * @param array $postData Post data to update
+     * @param array $postData Post data
      * @return bool Success status
      */
     public function updatePost($postId, $postData) {
-        $fields = [];
-        $params = [':post_id' => $postId];
-        
-        // Build dynamic query based on provided fields
-        foreach ($postData as $key => $value) {
-            if ($key !== 'id' && $key !== 'user_id') {
-                if ($key === 'comments_enabled' || $key === 'used_ai' || $key === 'nsfw') {
-                    $value = isset($value) ? 1 : 0;
-                }
-                $fields[] = "$key = :$key";
-                $params[":$key"] = $value;
-            }
+        // Ensure boolean fields are properly formatted
+        if (isset($postData['comments_enabled'])) {
+            $postData['comments_enabled'] = $postData['comments_enabled'] ? 1 : 0;
         }
         
-        if (empty($fields)) {
-            return false;
+        if (isset($postData['used_ai'])) {
+            $postData['used_ai'] = $postData['used_ai'] ? 1 : 0;
         }
         
-        $query = "UPDATE posts SET " . implode(', ', $fields) . " WHERE id = :post_id";
-        $stmt = $this->conn->prepare($query);
+        if (isset($postData['nsfw'])) {
+            $postData['nsfw'] = $postData['nsfw'] ? 1 : 0;
+        }
         
-        return $stmt->execute($params);
+        // Set updated date
+        $postData['updated_at'] = date('Y-m-d H:i:s');
+        
+        return $this->update($postId, $postData);
     }
     
     /**
-     * Delete post
-     * 
-     * @param int $postId Post ID
-     * @param int $userId User ID (for authorization)
-     * @return bool Success status
-     */
-    public function deletePost($postId, $userId) {
-        // First check if the user owns the post
-        $stmt = $this->conn->prepare("
-            SELECT user_id 
-            FROM posts 
-            WHERE id = :post_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->execute();
-        
-        $postUserId = $stmt->fetchColumn();
-        
-        // If user doesn't own post and is not an admin, fail
-        if ($postUserId != $userId) {
-            // Check if user is admin
-            $stmt = $this->conn->prepare("
-                SELECT is_admin 
-                FROM users 
-                WHERE id = :user_id
-            ");
-            $stmt->bindParam(':user_id', $userId);
-            $stmt->execute();
-            
-            $isAdmin = $stmt->fetchColumn();
-            
-            if (!$isAdmin) {
-                return false;
-            }
-        }
-        
-        // Delete the post
-        $stmt = $this->conn->prepare("
-            DELETE FROM posts 
-            WHERE id = :post_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        
-        return $stmt->execute();
-    }
-    
-    /**
-     * Get user posts
+     * Get feed posts (posts from followed users or everyone)
      * 
      * @param int $userId User ID
-     * @param int $limit Result limit
-     * @param int $offset Result offset
-     * @param string $sort Sort direction (recent, popular, oldest)
-     * @return array List of posts
-     */
-    public function getUserPosts($userId, $limit = 10, $offset = 0, $sort = 'recent') {
-        $orderBy = 'p.created_at DESC'; // Default sorting (recent)
-        
-        if ($sort === 'popular') {
-            $orderBy = 'likes_count DESC, comments_count DESC, p.created_at DESC';
-        } elseif ($sort === 'oldest') {
-            $orderBy = 'p.created_at ASC';
-        }
-        
-        $stmt = $this->conn->prepare("
-            SELECT 
-                p.id, p.title, p.description, p.image_url, p.category,
-                p.tags, p.used_ai, p.ai_tools, p.created_at,
-                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
-                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count
-            FROM posts p
-            WHERE p.user_id = :user_id
-            ORDER BY $orderBy
-            LIMIT :limit OFFSET :offset
-        ");
-        
-        $stmt->bindParam(':user_id', $userId);
-        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
-        $stmt->execute();
-        
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-    
-    /**
-     * Get feed posts (posts from followed users + trending)
-     * 
-     * @param int $userId User ID
-     * @param int $limit Result limit
-     * @param int $offset Result offset
+     * @param int $limit Maximum number of posts
+     * @param int $offset Offset for pagination
      * @param bool $followingOnly Only show posts from followed users
      * @param string $category Filter by category
-     * @return array List of posts with user interactions
+     * @return array Posts data
      */
     public function getFeedPosts($userId, $limit = 10, $offset = 0, $followingOnly = false, $category = '') {
-        $whereClause = [];
-        $params = [':user_id' => $userId];
+        $params = [$userId, $userId];
         
+        $sql = "
+            SELECT 
+                p.*, 
+                u.username, u.profile_picture,
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
+                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id AND user_id = ?) as user_liked,
+                (SELECT COUNT(*) FROM saved_posts WHERE post_id = p.id AND user_id = ?) as user_saved
+            FROM {$this->table} p
+            JOIN users u ON p.user_id = u.id
+        ";
+        
+        $where = [];
+        
+        // Filter by following if requested
         if ($followingOnly) {
-            $whereClause[] = "p.user_id IN (
-                SELECT followed_id FROM follows WHERE follower_id = :user_id
-                UNION
-                SELECT :user_id
+            $where[] = "p.user_id IN (
+                SELECT followed_id FROM follows WHERE follower_id = ?
+                UNION SELECT ?
             )";
+            $params[] = $userId;
+            $params[] = $userId; // Include user's own posts
         }
         
+        // Filter by category if provided
         if (!empty($category)) {
-            $whereClause[] = "p.category = :category";
-            $params[':category'] = $category;
+            $where[] = "p.category = ?";
+            $params[] = $category;
         }
         
         // Exclude posts from blocked users
-        $whereClause[] = "p.user_id NOT IN (
-            SELECT blocked_id FROM blocks WHERE blocker_id = :user_id
-            UNION
-            SELECT blocker_id FROM blocks WHERE blocked_id = :user_id
+        $where[] = "p.user_id NOT IN (
+            SELECT blocked_id FROM blocks WHERE blocker_id = ?
+            UNION SELECT blocker_id FROM blocks WHERE blocked_id = ?
         )";
+        $params[] = $userId;
+        $params[] = $userId;
         
-        $whereSQL = !empty($whereClause) ? "WHERE " . implode(" AND ", $whereClause) : "";
+        // Include NSFW posts only if user has enabled the option
+        $where[] = "(p.nsfw = 0 OR (SELECT show_nsfw FROM user_settings WHERE user_id = ?) = 1)";
+        $params[] = $userId;
         
-        $stmt = $this->conn->prepare("
-            SELECT 
-                p.id, p.user_id, p.title, p.description, p.image_url, 
-                p.category, p.tags, p.used_ai, p.ai_tools, p.created_at,
-                u.username as author_username, u.profile_picture as author_profile_pic,
-                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
-                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
-                CASE WHEN ul.id IS NOT NULL THEN 1 ELSE 0 END as user_liked,
-                CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END as user_saved
-            FROM posts p
-            JOIN users u ON p.user_id = u.id
-            LEFT JOIN likes ul ON ul.post_id = p.id AND ul.user_id = :user_id
-            LEFT JOIN saved_posts s ON s.post_id = p.id AND s.user_id = :user_id
-            $whereSQL
-            ORDER BY p.created_at DESC
-            LIMIT :limit OFFSET :offset
-        ");
-        
-        foreach ($params as $key => $value) {
-            if ($key === ':limit' || $key === ':offset') {
-                $stmt->bindValue($key, $value, PDO::PARAM_INT);
-            } else {
-                $stmt->bindValue($key, $value);
-            }
+        // Add WHERE clause if needed
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(" AND ", $where);
         }
         
-        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        // Add order and limit
+        $sql .= " ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
         
-        $stmt->execute();
-        $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $posts = $this->db->fetchAll($sql, $params);
         
-        // Get recent comments for each post
-        foreach ($posts as &$post) {
-            $post['comments'] = $this->getPostComments($post['id'], 2);
-        }
-        
-        return $posts;
+        // Process posts for display
+        return $this->processPostsForDisplay($posts, $userId);
     }
     
     /**
      * Get trending posts
      * 
-     * @param int $userId User ID (for personalization)
-     * @param int $limit Result limit
-     * @param int $offset Result offset
+     * @param int $userId User ID for personalized data
+     * @param int $limit Maximum number of posts
+     * @param int $offset Offset for pagination
      * @param string $category Filter by category
-     * @return array List of posts
+     * @return array Posts data
      */
     public function getTrendingPosts($userId, $limit = 10, $offset = 0, $category = '') {
-        $whereClause = [];
-        $params = [':user_id' => $userId];
+        $params = [$userId, $userId];
         
-        if (!empty($category)) {
-            $whereClause[] = "p.category = :category";
-            $params[':category'] = $category;
-        }
-        
-        // Exclude posts from blocked users
-        $whereClause[] = "p.user_id NOT IN (
-            SELECT blocked_id FROM blocks WHERE blocker_id = :user_id
-            UNION
-            SELECT blocker_id FROM blocks WHERE blocked_id = :user_id
-        )";
-        
-        // Only include posts from last 7 days for trending
-        $whereClause[] = "p.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-        
-        $whereSQL = !empty($whereClause) ? "WHERE " . implode(" AND ", $whereClause) : "";
-        
-        $stmt = $this->conn->prepare("
+        $sql = "
             SELECT 
-                p.id, p.user_id, p.title, p.description, p.image_url, 
-                p.category, p.tags, p.used_ai, p.ai_tools, p.created_at,
-                u.username as author_username, u.profile_picture as author_profile_pic,
+                p.*, 
+                u.username, u.profile_picture,
                 (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
                 (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
-                CASE WHEN ul.id IS NOT NULL THEN 1 ELSE 0 END as user_liked,
-                CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END as user_saved
-            FROM posts p
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id AND user_id = ?) as user_liked,
+                (SELECT COUNT(*) FROM saved_posts WHERE post_id = p.id AND user_id = ?) as user_saved
+            FROM {$this->table} p
             JOIN users u ON p.user_id = u.id
-            LEFT JOIN likes ul ON ul.post_id = p.id AND ul.user_id = :user_id
-            LEFT JOIN saved_posts s ON s.post_id = p.id AND s.user_id = :user_id
-            $whereSQL
-            ORDER BY (likes_count + comments_count * 2) DESC, p.created_at DESC
-            LIMIT :limit OFFSET :offset
-        ");
+        ";
         
-        foreach ($params as $key => $value) {
-            if ($key === ':limit' || $key === ':offset') {
-                $stmt->bindValue($key, $value, PDO::PARAM_INT);
-            } else {
-                $stmt->bindValue($key, $value);
-            }
+        $where = [];
+        
+        // Filter by category if provided
+        if (!empty($category)) {
+            $where[] = "p.category = ?";
+            $params[] = $category;
         }
         
-        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        // Only include posts from last 7 days for trending
+        $where[] = "p.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
         
-        $stmt->execute();
+        // Exclude posts from blocked users
+        $where[] = "p.user_id NOT IN (
+            SELECT blocked_id FROM blocks WHERE blocker_id = ?
+            UNION SELECT blocker_id FROM blocks WHERE blocked_id = ?
+        )";
+        $params[] = $userId;
+        $params[] = $userId;
         
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Include NSFW posts only if user has enabled the option
+        $where[] = "(p.nsfw = 0 OR (SELECT show_nsfw FROM user_settings WHERE user_id = ?) = 1)";
+        $params[] = $userId;
+        
+        // Add WHERE clause if needed
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(" AND ", $where);
+        }
+        
+        // Add trending ordering (likes + comments * 2) and limit
+        $sql .= " ORDER BY (likes_count + comments_count * 2) DESC, p.created_at DESC LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+        
+        $posts = $this->db->fetchAll($sql, $params);
+        
+        // Process posts for display
+        return $this->processPostsForDisplay($posts, $userId);
+    }
+    
+    /**
+     * Get posts by tag
+     * 
+     * @param string $tag Tag to search for
+     * @param int $userId User ID for personalization
+     * @param int $limit Maximum number of posts
+     * @param int $offset Offset for pagination
+     * @return array Posts data
+     */
+    public function getPostsByTag($tag, $userId, $limit = 10, $offset = 0) {
+        $params = [$userId, $userId, "%$tag%"];
+        
+        $sql = "
+            SELECT 
+                p.*, 
+                u.username, u.profile_picture,
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
+                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id AND user_id = ?) as user_liked,
+                (SELECT COUNT(*) FROM saved_posts WHERE post_id = p.id AND user_id = ?) as user_saved
+            FROM {$this->table} p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.tags LIKE ?
+        ";
+        
+        // Exclude posts from blocked users
+        $sql .= " AND p.user_id NOT IN (
+            SELECT blocked_id FROM blocks WHERE blocker_id = ?
+            UNION SELECT blocker_id FROM blocks WHERE blocked_id = ?
+        )";
+        $params[] = $userId;
+        $params[] = $userId;
+        
+        // Include NSFW posts only if user has enabled the option
+        $sql .= " AND (p.nsfw = 0 OR (SELECT show_nsfw FROM user_settings WHERE user_id = ?) = 1)";
+        $params[] = $userId;
+        
+        // Add order and limit
+        $sql .= " ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+        
+        $posts = $this->db->fetchAll($sql, $params);
+        
+        // Process posts for display
+        return $this->processPostsForDisplay($posts, $userId);
     }
     
     /**
      * Search posts
      * 
      * @param string $query Search query
-     * @param int $userId User ID (for personalization)
-     * @param int $limit Result limit
-     * @return array List of posts
+     * @param int $userId User ID for personalization
+     * @param int $limit Maximum number of results
+     * @return array Search results
      */
     public function searchPosts($query, $userId, $limit = 10) {
         $searchTerm = "%$query%";
+        $params = [$userId, $userId, $searchTerm, $searchTerm, $searchTerm];
         
-        $stmt = $this->conn->prepare("
+        $sql = "
             SELECT 
-                p.id, p.title, p.description, p.image_url, p.category,
-                p.tags, p.created_at, u.id as user_id, u.username
-            FROM posts p
+                p.*, 
+                u.username, u.profile_picture,
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
+                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id AND user_id = ?) as user_liked,
+                (SELECT COUNT(*) FROM saved_posts WHERE post_id = p.id AND user_id = ?) as user_saved
+            FROM {$this->table} p
             JOIN users u ON p.user_id = u.id
-            WHERE (p.title LIKE :query OR p.description LIKE :query OR p.tags LIKE :query)
-            AND p.user_id NOT IN (
-                SELECT blocked_id FROM blocks WHERE blocker_id = :user_id
-                UNION
-                SELECT blocker_id FROM blocks WHERE blocked_id = :user_id
-            )
-            ORDER BY p.created_at DESC
-            LIMIT :limit
-        ");
+            WHERE (p.title LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)
+        ";
         
-        $stmt->bindParam(':query', $searchTerm);
-        $stmt->bindParam(':user_id', $userId);
-        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-        $stmt->execute();
+        // Exclude posts from blocked users
+        $sql .= " AND p.user_id NOT IN (
+            SELECT blocked_id FROM blocks WHERE blocker_id = ?
+            UNION SELECT blocker_id FROM blocks WHERE blocked_id = ?
+        )";
+        $params[] = $userId;
+        $params[] = $userId;
         
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Include NSFW posts only if user has enabled the option
+        $sql .= " AND (p.nsfw = 0 OR (SELECT show_nsfw FROM user_settings WHERE user_id = ?) = 1)";
+        $params[] = $userId;
+        
+        // Add relevance scoring and limit
+        $sql .= " ORDER BY 
+            CASE 
+                WHEN p.title LIKE ? THEN 3
+                WHEN p.tags LIKE ? THEN 2
+                ELSE 1
+            END DESC,
+            p.created_at DESC
+            LIMIT ?";
+        $params[] = $searchTerm;
+        $params[] = $searchTerm;
+        $params[] = $limit;
+        
+        $posts = $this->db->fetchAll($sql, $params);
+        
+        // Process posts for display
+        return $this->processPostsForDisplay($posts, $userId);
     }
     
     /**
-     * Get post comments
-     * 
-     * @param int $postId Post ID
-     * @param int $limit Result limit
-     * @param int $offset Result offset
-     * @return array List of comments
-     */
-    public function getPostComments($postId, $limit = 10, $offset = 0) {
-        $stmt = $this->conn->prepare("
-            SELECT 
-                c.id, c.user_id, c.content, c.created_at,
-                u.username, u.profile_picture
-            FROM comments c
-            JOIN users u ON c.user_id = u.id
-            WHERE c.post_id = :post_id
-            ORDER BY c.created_at DESC
-            LIMIT :limit OFFSET :offset
-        ");
-        
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
-        $stmt->execute();
-        
-        $comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Format the comments for output
-        foreach ($comments as &$comment) {
-            $comment['user'] = [
-                'id' => $comment['user_id'],
-                'username' => $comment['username'],
-                'profile_picture' => $comment['profile_picture'] ?: '/api/placeholder/32/32'
-            ];
-            unset($comment['user_id'], $comment['username'], $comment['profile_picture']);
-        }
-        
-        return $comments;
-    }
-    
-    /**
-     * Add comment to post
-     * 
-     * @param int $postId Post ID
-     * @param int $userId User ID
-     * @param string $content Comment content
-     * @return int|bool New comment ID or false on failure
-     */
-    public function addComment($postId, $userId, $content) {
-        // First check if comments are enabled for this post
-        $stmt = $this->conn->prepare("
-            SELECT comments_enabled 
-            FROM posts 
-            WHERE id = :post_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->execute();
-        
-        $commentsEnabled = $stmt->fetchColumn();
-        
-        if (!$commentsEnabled) {
-            return false;
-        }
-        
-        $stmt = $this->conn->prepare("
-            INSERT INTO comments (post_id, user_id, content, created_at)
-            VALUES (:post_id, :user_id, :content, NOW())
-        ");
-        
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->bindParam(':user_id', $userId);
-        $stmt->bindParam(':content', $content);
-        
-        if ($stmt->execute()) {
-            return $this->conn->lastInsertId();
-        }
-        
-        return false;
-    }
-    
-    /**
-     * Like or unlike a post
+     * Toggle like status for a post
      * 
      * @param int $postId Post ID
      * @param int $userId User ID
@@ -459,38 +361,20 @@ class Post {
      */
     public function toggleLike($postId, $userId) {
         // Check if already liked
-        $stmt = $this->conn->prepare("
-            SELECT id 
-            FROM likes 
-            WHERE post_id = :post_id AND user_id = :user_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->bindParam(':user_id', $userId);
-        $stmt->execute();
-        
-        $likeExists = $stmt->fetch(PDO::FETCH_ASSOC);
+        $sql = "SELECT id FROM likes WHERE post_id = ? AND user_id = ?";
+        $likeExists = $this->db->fetch($sql, [$postId, $userId]);
         
         if ($likeExists) {
             // Unlike
-            $stmt = $this->conn->prepare("
-                DELETE FROM likes 
-                WHERE post_id = :post_id AND user_id = :user_id
-            ");
-            $stmt->bindParam(':post_id', $postId);
-            $stmt->bindParam(':user_id', $userId);
-            $stmt->execute();
-            
+            $this->db->delete('likes', 'post_id = ? AND user_id = ?', [$postId, $userId]);
             $action = 'unliked';
         } else {
             // Like
-            $stmt = $this->conn->prepare("
-                INSERT INTO likes (post_id, user_id, created_at)
-                VALUES (:post_id, :user_id, NOW())
-            ");
-            $stmt->bindParam(':post_id', $postId);
-            $stmt->bindParam(':user_id', $userId);
-            $stmt->execute();
-            
+            $this->db->insert('likes', [
+                'post_id' => $postId,
+                'user_id' => $userId,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
             $action = 'liked';
             
             // Create notification for post owner
@@ -498,14 +382,9 @@ class Post {
         }
         
         // Get updated like count
-        $stmt = $this->conn->prepare("
-            SELECT COUNT(*) 
-            FROM likes 
-            WHERE post_id = :post_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->execute();
-        $likesCount = $stmt->fetchColumn();
+        $sql = "SELECT COUNT(*) as count FROM likes WHERE post_id = ?";
+        $result = $this->db->fetch($sql, [$postId]);
+        $likesCount = $result ? (int)$result['count'] : 0;
         
         return [
             'action' => $action,
@@ -514,51 +393,7 @@ class Post {
     }
     
     /**
-     * Create notification for post like
-     * 
-     * @param int $postId Post ID
-     * @param int $actorId User ID who liked
-     * @return bool Success status
-     */
-    private function createLikeNotification($postId, $actorId) {
-        // Get post owner
-        $stmt = $this->conn->prepare("
-            SELECT p.user_id, p.title, u.username
-            FROM posts p
-            JOIN users u ON u.id = :actor_id
-            WHERE p.id = :post_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->bindParam(':actor_id', $actorId);
-        $stmt->execute();
-        
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Don't notify if liking own post
-        if ($result['user_id'] == $actorId) {
-            return false;
-        }
-        
-        $message = $result['username'] . ' liked your post "' . $result['title'] . '"';
-        
-        $stmt = $this->conn->prepare("
-            INSERT INTO notifications (
-                user_id, type, actor_id, entity_id, message, created_at
-            ) VALUES (
-                :user_id, 'like', :actor_id, :entity_id, :message, NOW()
-            )
-        ");
-        
-        $stmt->bindParam(':user_id', $result['user_id']);
-        $stmt->bindParam(':actor_id', $actorId);
-        $stmt->bindParam(':entity_id', $postId);
-        $stmt->bindParam(':message', $message);
-        
-        return $stmt->execute();
-    }
-    
-    /**
-     * Save or unsave a post
+     * Toggle save status for a post
      * 
      * @param int $postId Post ID
      * @param int $userId User ID
@@ -566,38 +401,20 @@ class Post {
      */
     public function toggleSave($postId, $userId) {
         // Check if already saved
-        $stmt = $this->conn->prepare("
-            SELECT id 
-            FROM saved_posts 
-            WHERE post_id = :post_id AND user_id = :user_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->bindParam(':user_id', $userId);
-        $stmt->execute();
-        
-        $saveExists = $stmt->fetch(PDO::FETCH_ASSOC);
+        $sql = "SELECT id FROM saved_posts WHERE post_id = ? AND user_id = ?";
+        $saveExists = $this->db->fetch($sql, [$postId, $userId]);
         
         if ($saveExists) {
             // Unsave
-            $stmt = $this->conn->prepare("
-                DELETE FROM saved_posts 
-                WHERE post_id = :post_id AND user_id = :user_id
-            ");
-            $stmt->bindParam(':post_id', $postId);
-            $stmt->bindParam(':user_id', $userId);
-            $stmt->execute();
-            
+            $this->db->delete('saved_posts', 'post_id = ? AND user_id = ?', [$postId, $userId]);
             $action = 'unsaved';
         } else {
             // Save
-            $stmt = $this->conn->prepare("
-                INSERT INTO saved_posts (post_id, user_id, created_at)
-                VALUES (:post_id, :user_id, NOW())
-            ");
-            $stmt->bindParam(':post_id', $postId);
-            $stmt->bindParam(':user_id', $userId);
-            $stmt->execute();
-            
+            $this->db->insert('saved_posts', [
+                'post_id' => $postId,
+                'user_id' => $userId,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
             $action = 'saved';
         }
         
@@ -607,149 +424,15 @@ class Post {
     }
     
     /**
-     * Get saved posts
+     * Get trending tags
      * 
-     * @param int $userId User ID
-     * @param int $limit Result limit
-     * @param int $offset Result offset
-     * @return array List of saved posts
-     */
-    public function getSavedPosts($userId, $limit = 10, $offset = 0) {
-        $stmt = $this->conn->prepare("
-            SELECT 
-                p.id, p.user_id, p.title, p.description, p.image_url, 
-                p.category, p.tags, p.used_ai, p.created_at,
-                u.username as author_username, u.profile_picture as author_profile_pic,
-                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
-                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
-                sp.created_at as saved_at
-            FROM saved_posts sp
-            JOIN posts p ON sp.post_id = p.id
-            JOIN users u ON p.user_id = u.id
-            WHERE sp.user_id = :user_id
-            ORDER BY sp.created_at DESC
-            LIMIT :limit OFFSET :offset
-        ");
-        
-        $stmt->bindParam(':user_id', $userId);
-        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
-        $stmt->execute();
-        
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-    
-    /**
-     * Report a post
-     * 
-     * @param int $postId Post ID
-     * @param int $userId User ID reporting
-     * @param string $reason Report reason
-     * @param string $details Additional details
-     * @return bool Success status
-     */
-    public function reportPost($postId, $userId, $reason, $details = null) {
-        // Get post owner
-        $stmt = $this->conn->prepare("
-            SELECT user_id 
-            FROM posts 
-            WHERE id = :post_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->execute();
-        
-        $postOwnerId = $stmt->fetchColumn();
-        
-        // Don't allow reporting own post
-        if ($postOwnerId == $userId) {
-            return false;
-        }
-        
-        $stmt = $this->conn->prepare("
-            INSERT INTO post_reports (
-                post_id, reporter_id, reason, details, created_at
-            ) VALUES (
-                :post_id, :reporter_id, :reason, :details, NOW()
-            )
-        ");
-        
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->bindParam(':reporter_id', $userId);
-        $stmt->bindParam(':reason', $reason);
-        $stmt->bindParam(':details', $details);
-        
-        return $stmt->execute();
-    }
-    
-    /**
-     * Get post metrics
-     * 
-     * @param int $postId Post ID
-     * @return array Post metrics (views, likes, comments)
-     */
-    public function getPostMetrics($postId) {
-        // Get views
-        $stmt = $this->conn->prepare("
-            SELECT views 
-            FROM posts 
-            WHERE id = :post_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->execute();
-        $views = $stmt->fetchColumn() ?: 0;
-        
-        // Get likes count
-        $stmt = $this->conn->prepare("
-            SELECT COUNT(*) 
-            FROM likes 
-            WHERE post_id = :post_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->execute();
-        $likesCount = $stmt->fetchColumn();
-        
-        // Get comments count
-        $stmt = $this->conn->prepare("
-            SELECT COUNT(*) 
-            FROM comments 
-            WHERE post_id = :post_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        $stmt->execute();
-        $commentsCount = $stmt->fetchColumn();
-        
-        return [
-            'views' => $views,
-            'likes' => $likesCount,
-            'comments' => $commentsCount
-        ];
-    }
-    
-    /**
-     * Increment post view count
-     * 
-     * @param int $postId Post ID
-     * @return bool Success status
-     */
-    public function incrementViews($postId) {
-        $stmt = $this->conn->prepare("
-            UPDATE posts 
-            SET views = views + 1 
-            WHERE id = :post_id
-        ");
-        $stmt->bindParam(':post_id', $postId);
-        
-        return $stmt->execute();
-    }
-    
-    /**
-     * Get trending tags from posts
-     * 
-     * @param int $limit Result limit
-     * @return array List of trending tags with counts
+     * @param int $limit Maximum number of tags
+     * @return array Tags with counts
      */
     public function getTrendingTags($limit = 10) {
-        $stmt = $this->conn->prepare("
+        // This is a more complex query that extracts tags from the comma-separated list
+        // and counts their occurrences across all posts
+        $sql = "
             SELECT 
                 TRIM(tag) as name, 
                 COUNT(*) as count
@@ -757,7 +440,7 @@ class Post {
                 SELECT 
                     SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(tags, ','), ',', n.n), ',', -1) as tag
                 FROM 
-                    posts,
+                    {$this->table},
                     (SELECT a.N + b.N * 10 + 1 as n
                      FROM 
                          (SELECT 0 as N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) a,
@@ -773,12 +456,200 @@ class Post {
                 CHAR_LENGTH(tag) > 1
             GROUP BY tag
             ORDER BY count DESC, name
-            LIMIT :limit
-        ");
+            LIMIT ?
+        ";
         
-        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-        $stmt->execute();
+        return $this->db->fetchAll($sql, [$limit]);
+    }
+    
+    /**
+     * Search tags
+     * 
+     * @param string $query Search query
+     * @param int $limit Maximum number of results
+     * @return array Matching tags
+     */
+    public function searchTags($query, $limit = 10) {
+        $searchTerm = "%$query%";
         
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // This uses the same tag extraction logic as getTrendingTags
+        $sql = "
+            SELECT 
+                TRIM(tag) as name, 
+                COUNT(*) as count
+            FROM (
+                SELECT 
+                    SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(tags, ','), ',', n.n), ',', -1) as tag
+                FROM 
+                    {$this->table},
+                    (SELECT a.N + b.N * 10 + 1 as n
+                     FROM 
+                         (SELECT 0 as N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) a,
+                         (SELECT 0 as N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) b
+                    ) n
+                WHERE 
+                    n.n <= 1 + LENGTH(tags) - LENGTH(REPLACE(tags, ',', ''))
+                    AND tags IS NOT NULL
+                    AND tags != ''
+            ) as subquery
+            WHERE 
+                tag LIKE ?
+            GROUP BY tag
+            ORDER BY 
+                CASE WHEN tag LIKE ? THEN 0 ELSE 1 END,
+                count DESC, name
+            LIMIT ?
+        ";
+        
+        return $this->db->fetchAll($sql, [$searchTerm, $query, $limit]);
+    }
+    
+    /**
+     * Get categories for posts
+     * 
+     * @return array List of categories
+     */
+    public function getCategories() {
+        return [
+            ['id' => 'digital-art', 'name' => 'Digital Art'],
+            ['id' => 'traditional', 'name' => 'Traditional'],
+            ['id' => 'photography', 'name' => 'Photography'],
+            ['id' => '3d-art', 'name' => '3D Art'],
+            ['id' => 'illustration', 'name' => 'Illustration'],
+            ['id' => 'animation', 'name' => 'Animation'],
+            ['id' => 'concept-art', 'name' => 'Concept Art'],
+            ['id' => 'character-design', 'name' => 'Character Design'],
+            ['id' => 'fan-art', 'name' => 'Fan Art'],
+            ['id' => 'other', 'name' => 'Other']
+        ];
+    }
+    
+    /**
+     * Increment view count for a post
+     * 
+     * @param int $postId Post ID
+     * @return bool Success status
+     */
+    public function incrementViews($postId) {
+        $sql = "UPDATE {$this->table} SET views = views + 1 WHERE id = ?";
+        return $this->db->query($sql, [$postId])->rowCount() > 0;
+    }
+    
+    /**
+     * Create a notification for post like
+     * 
+     * @param int $postId Post ID
+     * @param int $actorId User who liked the post
+     * @return bool Success status
+     */
+    private function createLikeNotification($postId, $actorId) {
+        // Get post owner
+        $post = $this->getPost($postId);
+        
+        if (!$post || $post['user_id'] == $actorId) {
+            return false; // Don't notify for self-likes
+        }
+        
+        // Get actor info
+        $actor = (new User())->find($actorId);
+        
+        if (!$actor) {
+            return false;
+        }
+        
+        // Create notification message
+        $message = "{$actor['username']} liked your post \"{$post['title']}\"";
+        
+        // Insert notification
+        $notification = new Notification();
+        return $notification->createNotification(
+            $post['user_id'],
+            Notification::TYPE_LIKE,
+            $actorId,
+            $postId,
+            $message
+        );
+    }
+    
+    /**
+     * Process posts data for display
+     * 
+     * @param array $posts Raw posts data
+     * @param int $userId Current user ID
+     * @return array Processed posts
+     */
+    private function processPostsForDisplay($posts, $userId) {
+        $processedPosts = [];
+        
+        foreach ($posts as $post) {
+            // Format user data
+            $post['author_username'] = $post['username'];
+            $post['author_profile_pic'] = $post['profile_picture'] ?: '/assets/images/default-avatar.png';
+            
+            // Convert numeric fields
+            $post['likes_count'] = (int)$post['likes_count'];
+            $post['comments_count'] = (int)$post['comments_count'];
+            $post['views'] = (int)($post['views'] ?? 0);
+            
+            // Convert boolean fields
+            $post['comments_enabled'] = (bool)$post['comments_enabled'];
+            $post['used_ai'] = (bool)$post['used_ai'];
+            $post['nsfw'] = (bool)$post['nsfw'];
+            $post['user_liked'] = (bool)$post['user_liked'];
+            $post['user_saved'] = (bool)$post['user_saved'];
+            
+            // Add recent comments if needed
+            if ($post['comments_count'] > 0) {
+                $post['comments'] = $this->getPostComments($post['id'], 2);
+            } else {
+                $post['comments'] = [];
+            }
+            
+            // Clean up unnecessary fields
+            unset($post['username'], $post['profile_picture']);
+            
+            $processedPosts[] = $post;
+        }
+        
+        return $processedPosts;
+    }
+    
+    /**
+     * Get recent comments for a post
+     * 
+     * @param int $postId Post ID
+     * @param int $limit Maximum number of comments
+     * @return array Comments
+     */
+    private function getPostComments($postId, $limit = 2) {
+        $sql = "
+            SELECT 
+                c.id, c.user_id, c.content, c.created_at,
+                u.username, u.profile_picture
+            FROM comments c
+            JOIN users u ON c.user_id = u.id
+            WHERE c.post_id = ?
+            ORDER BY c.created_at DESC
+            LIMIT ?
+        ";
+        
+        $comments = $this->db->fetchAll($sql, [$postId, $limit]);
+        
+        // Process comments
+        $processedComments = [];
+        foreach ($comments as $comment) {
+            $processedComments[] = [
+                'id' => $comment['id'],
+                'content' => $comment['content'],
+                'created_at' => $comment['created_at'],
+                'user' => [
+                    'id' => $comment['user_id'],
+                    'username' => $comment['username'],
+                    'profile_picture' => $comment['profile_picture'] ?: '/assets/images/default-avatar.png'
+                ]
+            ];
+        }
+        
+        return $processedComments;
     }
 }

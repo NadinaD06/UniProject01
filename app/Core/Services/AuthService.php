@@ -1,7 +1,7 @@
 <?php
 /**
  * app/Services/AuthService.php
- * Improved authentication service
+ * Authentication service handling user auth, sessions, and CSRF protection
  */
 namespace App\Services;
 
@@ -10,6 +10,9 @@ use App\Models\User;
 class AuthService {
     private $user;
     
+    /**
+     * Constructor initializes User model and starts session if needed
+     */
     public function __construct() {
         $this->user = new User();
         
@@ -66,7 +69,7 @@ class AuthService {
                 [
                     'expires' => $expiry,
                     'path' => '/',
-                    'secure' => true,
+                    'secure' => isset($_SERVER['HTTPS']),
                     'httponly' => true,
                     'samesite' => 'Lax'
                 ]
@@ -103,7 +106,7 @@ class AuthService {
     }
     
     /**
-     * Get authenticated user
+     * Get authenticated user data
      * 
      * @return array|null User data or null if not logged in
      */

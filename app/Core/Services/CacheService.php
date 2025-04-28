@@ -1,6 +1,7 @@
 <?php
 /**
 * app/Services/CacheService.php
+* Handles caching for improved performance
 **/
 namespace App\Services;
 
@@ -9,7 +10,7 @@ class CacheService {
     private $path;
     
     public function __construct() {
-        $this->path = __DIR__ . '/../../storage/cache';
+        $this->path = APP_ROOT . '/storage/cache';
         
         // Create cache directory if it doesn't exist
         if (!is_dir($this->path)) {
@@ -126,10 +127,29 @@ class CacheService {
     /**
      * Delete cache
      * 
-     * @param string $key Cache key
+     * @param string $key Cache key (supports wildcards)
      * @return bool Success status
      */
     public function forget($key) {
+        // Check if key contains wildcards
+        if (strpos($key, '*') !== false) {
+            // Get all cache files
+            $files = glob($this->path . '/*.cache');
+            $pattern = str_replace('*', '.*', $key);
+            
+            foreach ($files as $file) {
+                // Get original key from filename
+                $cacheKey = basename($file, '.cache');
+                
+                // Check if original key matches pattern
+                if (preg_match('/' . $pattern . '/', $cacheKey)) {
+                    unlink($file);
+                }
+            }
+            
+            return true;
+        }
+        
         $file = $this->getCacheFile($key);
         
         if (file_exists($file)) {

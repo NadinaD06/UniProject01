@@ -1,19 +1,39 @@
 <?php
 /**
  * ArtSpace Social Media Platform
- * Front Controller - Entry point for all requests
+ * Main entry point for all requests
  */
 
 // Define application path constants
-define('APP_ROOT', dirname(__DIR__));
+define('APP_ROOT', __DIR__);
 define('APP_PATH', APP_ROOT . '/app');
 define('VIEW_PATH', APP_PATH . '/Views');
 define('STORAGE_PATH', APP_ROOT . '/storage');
 define('PUBLIC_PATH', APP_ROOT . '/public');
 
-// Load Composer autoloader
+// Load Composer autoloader if available
 if (file_exists(APP_ROOT . '/vendor/autoload.php')) {
     require APP_ROOT . '/vendor/autoload.php';
+} else {
+    // Manual autoloader
+    spl_autoload_register(function ($class) {
+        // Convert namespace to path
+        $class = str_replace('\\', '/', $class);
+        
+        // Check app directory
+        $file = APP_ROOT . '/' . $class . '.php';
+        if (file_exists($file)) {
+            require_once $file;
+            return;
+        }
+        
+        // Check for non-namespaced core classes
+        $corePath = APP_ROOT . '/app/Core/' . $class . '.php';
+        if (file_exists($corePath)) {
+            require_once $corePath;
+            return;
+        }
+    });
 }
 
 // Load configuration
@@ -38,7 +58,8 @@ define('WEBSOCKET_ENABLED', $config['websocket']['enabled'] ?? false);
 define('WEBSOCKET_URL', $config['websocket']['url'] ?? 'ws://localhost:8080');
 
 // Initialize error handler
-new \App\Core\ErrorHandler();
+require_once APP_PATH . '/Core/ErrorHandler.php';
+$errorHandler = new \App\Core\ErrorHandler();
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
@@ -58,8 +79,16 @@ if (session_status() === PHP_SESSION_NONE) {
 // Set default timezone
 date_default_timezone_set($config['timezone'] ?? 'UTC');
 
-// Load routes
-$router = require APP_ROOT . '/routes/web.php';
+// Load database configuration
+require_once APP_PATH . '/Core/Database.php';
+$database = \App\Core\Database::getInstance();
 
-// Handle the request
+// Initialize router
+require_once APP_PATH . '/router.php';
+$router = new \App\Core\Router();
+
+// Load routes
+require APP_ROOT . '/routes/web.php';
+
+// Dispatch the request
 $router->dispatch();

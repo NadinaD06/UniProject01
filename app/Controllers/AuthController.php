@@ -384,22 +384,4 @@ class AuthController extends Controller {
         $this->setFlashMessage('Password has been reset successfully. You can now log in with your new password.', 'success');
         return $this->redirect('/login');
     }
-    
-    /**
-     * Set old input data in session
-     * 
-     * @param array $data
-     */
-    protected function setOldInput($data) {
-        $_SESSION['old_input'] = $data;
-    }
-    
-    /**
-     * Set validation errors in session
-     * 
-     * @param array $errors
-     */
-    protected function setValidationErrors($errors) {
-        $_SESSION['validation_errors'] = $errors;
-    }
 }
