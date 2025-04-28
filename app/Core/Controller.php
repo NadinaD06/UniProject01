@@ -1,17 +1,26 @@
 <?php
 /**
 * app/Core/Controller.php
+* Base controller class with common functionality
 **/
 
 namespace App\Core;
 
 use App\Services\AuthService;
+use App\Services\WebSocketService;
 
 abstract class Controller {
     protected $auth;
+    protected $webSocket;
     
     public function __construct() {
+        // Initialize authentication service
         $this->auth = new AuthService();
+        
+        // Initialize WebSocket service if enabled
+        if (defined('WEBSOCKET_ENABLED') && WEBSOCKET_ENABLED) {
+            $this->webSocket = new WebSocketService();
+        }
     }
     
     /**
@@ -26,7 +35,7 @@ abstract class Controller {
         extract($data);
         
         // Define the path to the view file
-        $viewPath = __DIR__ . '/../Views/' . $view . '.php';
+        $viewPath = VIEW_PATH . '/' . $view . '.php';
         
         // Check if the view file exists
         if (!file_exists($viewPath)) {
@@ -43,7 +52,7 @@ abstract class Controller {
         $content = ob_get_clean();
         
         // Include the layout file
-        include __DIR__ . '/../Views/layout.php';
+        include VIEW_PATH . '/layout.php';
         
         return $content;
     }
@@ -322,5 +331,85 @@ abstract class Controller {
         }
         
         return null;
+    }
+    
+    /**
+     * Set old input data in session
+     * 
+     * @param array $data
+     */
+    protected function setOldInput($data) {
+        $_SESSION['old_input'] = $data;
+    }
+    
+    /**
+     * Set validation errors in session
+     * 
+     * @param array $errors
+     */
+    protected function setValidationErrors($errors) {
+        $_SESSION['validation_errors'] = $errors;
+    }
+    
+    /**
+     * Check if the current route matches the given pattern
+     * 
+     * @param string $pattern Route pattern to check
+     * @return bool True if current route matches the pattern
+     */
+    protected function isActiveRoute($pattern) {
+        $currentRoute = $_SERVER['REQUEST_URI'];
+        
+        // Remove query string if present
+        if (strpos($currentRoute, '?') !== false) {
+            $currentRoute = substr($currentRoute, 0, strpos($currentRoute, '?'));
+        }
+        
+        // Exact match
+        if ($pattern === $currentRoute) {
+            return true;
+        }
+        
+        // Pattern match (e.g., '/post/*')
+        if (substr($pattern, -1) === '*') {
+            $basePattern = substr($pattern, 0, -1);
+            return strpos($currentRoute, $basePattern) === 0;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Format time ago
+     * 
+     * @param string $timestamp Timestamp to format
+     * @return string Formatted time ago string
+     */
+    protected function formatTimeAgo($timestamp) {
+        $time = strtotime($timestamp);
+        $now = time();
+        $diff = $now - $time;
+        
+        if ($diff < 60) {
+            return 'just now';
+        } elseif ($diff < 3600) {
+            $minutes = floor($diff / 60);
+            return $minutes . ' minute' . ($minutes > 1 ? 's' : '') . ' ago';
+        } elseif ($diff < 86400) {
+            $hours = floor($diff / 3600);
+            return $hours . ' hour' . ($hours > 1 ? 's' : '') . ' ago';
+        } elseif ($diff < 604800) {
+            $days = floor($diff / 86400);
+            return $days . ' day' . ($days > 1 ? 's' : '') . ' ago';
+        } elseif ($diff < 2592000) {
+            $weeks = floor($diff / 604800);
+            return $weeks . ' week' . ($weeks > 1 ? 's' : '') . ' ago';
+        } elseif ($diff < 31536000) {
+            $months = floor($diff / 2592000);
+            return $months . ' month' . ($months > 1 ? 's' : '') . ' ago';
+        } else {
+            $years = floor($diff / 31536000);
+            return $years . ' year' . ($years > 1 ? 's' : '') . ' ago';
+        }
     }
 }

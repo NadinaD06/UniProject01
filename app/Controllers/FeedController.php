@@ -57,12 +57,24 @@ class FeedController extends Controller {
             }, 1800); // Cache for 30 minutes
         }
         
+        // Get user's own data
+        $userData = $this->auth->user();
+        $userStats = $this->user->getUserStats($userId);
+        
+        // Get feed categories
+        $categories = $this->cache->remember('categories', function() {
+            return $this->post->getCategories();
+        }, 86400); // Cache for 24 hours
+        
         return $this->view('feed/index', [
             'posts' => $posts,
             'filter' => $filter,
             'category' => $category,
             'trending_tags' => $trendingTags,
-            'suggested_users' => $suggestedUsers
+            'suggested_users' => $suggestedUsers,
+            'user' => $userData,
+            'user_stats' => $userStats,
+            'categories' => $categories
         ]);
     }
     

@@ -45,3 +45,5 @@ if (!isset($content)) {
     </script>
 </head>
 <body class="<?php echo $body_class
+// Initialize error handler
+$errorHandler = new \App\Core\ErrorHandler();

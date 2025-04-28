@@ -1,6 +1,7 @@
 <?php
 /**
  * app/Models/User.php
+ * User model for handling user data and authentication
  */
 
 namespace App\Models;
@@ -45,13 +46,13 @@ class User extends Model {
      */
     public function authenticate($usernameOrEmail, $password) {
         $user = $this->db->fetch(
-            "SELECT id, username, email, password_hash, is_admin, is_active, profile_picture
-            FROM {$this->table}
+            "SELECT * FROM {$this->table} 
             WHERE (username = ? OR email = ?) AND is_active = 1",
             [$usernameOrEmail, $usernameOrEmail]
         );
         
         if ($user && password_verify($password, $user['password_hash'])) {
+            // Don't return the password hash to the caller
             unset($user['password_hash']);
             return $user;
         }
@@ -93,7 +94,7 @@ class User extends Model {
     }
     
     /**
-     * Store remember token
+     * Store remember token for user
      * 
      * @param int $userId User ID
      * @param string $token Hashed token
@@ -103,14 +104,14 @@ class User extends Model {
     public function storeRememberToken($userId, $token, $expiry) {
         // Delete any existing tokens
         $this->db->query(
-            "DELETE FROM user_tokens
+            "DELETE FROM user_tokens 
             WHERE user_id = ? AND type = 'remember'",
             [$userId]
         );
         
         // Insert new token
         return $this->db->query(
-            "INSERT INTO user_tokens (user_id, token, type, expires_at, created_at)
+            "INSERT INTO user_tokens (user_id, token, type, expires_at, created_at) 
             VALUES (?, ?, 'remember', ?, NOW())",
             [$userId, $token, date('Y-m-d H:i:s', $expiry)]
         );
@@ -124,9 +125,9 @@ class User extends Model {
      */
     public function getUserByRememberToken($token) {
         $userToken = $this->db->fetch(
-            "SELECT ut.user_id, ut.token
-            FROM user_tokens ut
-            WHERE ut.type = 'remember'
+            "SELECT ut.user_id, ut.token 
+            FROM user_tokens ut 
+            WHERE ut.type = 'remember' 
             AND ut.expires_at > NOW()",
             []
         );
@@ -154,7 +155,7 @@ class User extends Model {
     public function removeRememberToken($userId, $token) {
         // Delete token
         return $this->db->query(
-            "DELETE FROM user_tokens
+            "DELETE FROM user_tokens 
             WHERE user_id = ? AND type = 'remember'",
             [$userId]
         );
@@ -171,14 +172,14 @@ class User extends Model {
     public function storePasswordResetToken($userId, $token, $expiry) {
         // Delete any existing tokens
         $this->db->query(
-            "DELETE FROM user_tokens
+            "DELETE FROM user_tokens 
             WHERE user_id = ? AND type = 'password_reset'",
             [$userId]
         );
         
         // Insert new token
         return $this->db->query(
-            "INSERT INTO user_tokens (user_id, token, type, expires_at, created_at)
+            "INSERT INTO user_tokens (user_id, token, type, expires_at, created_at) 
             VALUES (?, ?, 'password_reset', ?, NOW())",
             [$userId, $token, date('Y-m-d H:i:s', $expiry)]
         );
@@ -192,9 +193,9 @@ class User extends Model {
      */
     public function isValidPasswordResetToken($token) {
         $count = $this->db->fetch(
-            "SELECT COUNT(*) as count
-            FROM user_tokens
-            WHERE token = ? AND type = 'password_reset'
+            "SELECT COUNT(*) as count 
+            FROM user_tokens 
+            WHERE token = ? AND type = 'password_reset' 
             AND expires_at > NOW()",
             [$token]
         );
@@ -210,9 +211,9 @@ class User extends Model {
      */
     public function getUserByPasswordResetToken($token) {
         $userToken = $this->db->fetch(
-            "SELECT user_id
-            FROM user_tokens
-            WHERE token = ? AND type = 'password_reset'
+            "SELECT user_id 
+            FROM user_tokens 
+            WHERE token = ? AND type = 'password_reset' 
             AND expires_at > NOW()",
             [$token]
         );
@@ -233,7 +234,7 @@ class User extends Model {
      */
     public function deletePasswordResetToken($token) {
         return $this->db->query(
-            "DELETE FROM user_tokens
+            "DELETE FROM user_tokens 
             WHERE token = ? AND type = 'password_reset'",
             [$token]
         );
@@ -247,8 +248,8 @@ class User extends Model {
      */
     public function getFollowersCount($userId) {
         $result = $this->db->fetch(
-            "SELECT COUNT(*) as count
-            FROM follows
+            "SELECT COUNT(*) as count 
+            FROM follows 
             WHERE followed_id = ?",
             [$userId]
         );
@@ -264,8 +265,8 @@ class User extends Model {
      */
     public function getFollowingCount($userId) {
         $result = $this->db->fetch(
-            "SELECT COUNT(*) as count
-            FROM follows
+            "SELECT COUNT(*) as count 
+            FROM follows 
             WHERE follower_id = ?",
             [$userId]
         );
@@ -282,8 +283,8 @@ class User extends Model {
      */
     public function isFollowing($followerId, $followedId) {
         $result = $this->db->fetch(
-            "SELECT COUNT(*) as count
-            FROM follows
+            "SELECT COUNT(*) as count 
+            FROM follows 
             WHERE follower_id = ? AND followed_id = ?",
             [$followerId, $followedId]
         );
@@ -310,7 +311,7 @@ class User extends Model {
         }
         
         return $this->db->query(
-            "INSERT INTO follows (follower_id, followed_id, created_at)
+            "INSERT INTO follows (follower_id, followed_id, created_at) 
             VALUES (?, ?, NOW())",
             [$followerId, $followedId]
         );
@@ -325,7 +326,7 @@ class User extends Model {
      */
     public function unfollow($followerId, $followedId) {
         return $this->db->query(
-            "DELETE FROM follows
+            "DELETE FROM follows 
             WHERE follower_id = ? AND followed_id = ?",
             [$followerId, $followedId]
         );
@@ -340,8 +341,8 @@ class User extends Model {
     public function getUserStats($userId) {
         // Get posts count
         $postsCount = $this->db->fetch(
-            "SELECT COUNT(*) as count
-            FROM posts
+            "SELECT COUNT(*) as count 
+            FROM posts 
             WHERE user_id = ?",
             [$userId]
         );
@@ -357,5 +358,74 @@ class User extends Model {
             'followers_count' => $followersCount,
             'following_count' => $followingCount
         ];
+    }
+    
+    /**
+     * Get users suggested to follow
+     * 
+     * @param int $userId User ID
+     * @param int $limit Maximum number of users to return
+     * @return array List of suggested users
+     */
+    public function getSuggestedUsers($userId, $limit = 5) {
+        // Get users current user is not following and who are not the current user
+        $query = "
+            SELECT 
+                u.id, u.username, u.profile_picture, u.bio,
+                (SELECT COUNT(*) FROM follows WHERE followed_id = u.id) as follower_count
+            FROM users u 
+            WHERE u.id != ? 
+            AND u.id NOT IN (
+                SELECT followed_id FROM follows WHERE follower_id = ?
+            )
+            AND u.id NOT IN (
+                SELECT blocked_id FROM blocks WHERE blocker_id = ?
+                UNION
+                SELECT blocker_id FROM blocks WHERE blocked_id = ?
+            )
+            ORDER BY follower_count DESC, RAND()
+            LIMIT ?
+        ";
+        
+        return $this->db->fetchAll($query, [$userId, $userId, $userId, $userId, $limit]);
+    }
+    
+    /**
+     * Search users
+     * 
+     * @param string $query Search query
+     * @param int $limit Maximum number of results
+     * @return array List of matching users
+     */
+    public function searchUsers($query, $limit = 10) {
+        $searchTerm = "%$query%";
+        
+        $sql = "
+            SELECT id, username, profile_picture, bio
+            FROM {$this->table}
+            WHERE username LIKE ? OR full_name LIKE ?
+            LIMIT ?
+        ";
+        
+        return $this->db->fetchAll($sql, [$searchTerm, $searchTerm, $limit]);
+    }
+    
+    /**
+     * Check if a user is blocked
+     * 
+     * @param int $userId User ID
+     * @param int $targetId Target user ID to check
+     * @return bool True if user is blocked
+     */
+    public function isUserBlocked($userId, $targetId) {
+        $sql = "
+            SELECT COUNT(*) as count 
+            FROM blocks
+            WHERE (blocker_id = ? AND blocked_id = ?)
+        ";
+        
+        $result = $this->db->fetch($sql, [$userId, $targetId]);
+        
+        return $result && (int)$result['count'] > 0;
     }
 }
