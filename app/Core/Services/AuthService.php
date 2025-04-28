@@ -1,6 +1,7 @@
 <?php
 /**
  * app/Services/AuthService.php
+ * Improved authentication service
  */
 namespace App\Services;
 
@@ -18,6 +19,14 @@ class AuthService {
         }
     }
     
+    /**
+     * Attempt to authenticate a user
+     * 
+     * @param string $usernameOrEmail Username or email
+     * @param string $password Password
+     * @param bool $remember Remember login
+     * @return bool Success status
+     */
     public function attempt($usernameOrEmail, $password, $remember = false) {
         $user = $this->user->authenticate($usernameOrEmail, $password);
         
@@ -29,10 +38,16 @@ class AuthService {
         return false;
     }
     
+    /**
+     * Log in a user
+     * 
+     * @param array $user User data
+     * @param bool $remember Remember login
+     */
     public function login($user, $remember = false) {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
-        $_SESSION['is_admin'] = (bool) $user['is_admin'];
+        $_SESSION['is_admin'] = (bool) ($user['is_admin'] ?? false);
         
         // Regenerate session ID to prevent session fixation
         session_regenerate_id(true);
@@ -48,19 +63,50 @@ class AuthService {
             setcookie(
                 'remember_token',
                 $token,
-                $expiry,
-                '/',
-                '',
-                true, // Secure
-                true  // HttpOnly
+                [
+                    'expires' => $expiry,
+                    'path' => '/',
+                    'secure' => true,
+                    'httponly' => true,
+                    'samesite' => 'Lax'
+                ]
             );
         }
     }
     
+    /**
+     * Check if user is logged in
+     * 
+     * @return bool User is logged in
+     */
     public function check() {
-        return isset($_SESSION['user_id']);
+        // Check if user is logged in via session
+        if (isset($_SESSION['user_id'])) {
+            return true;
+        }
+        
+        // Check if user is logged in via remember token
+        if (isset($_COOKIE['remember_token'])) {
+            $token = $_COOKIE['remember_token'];
+            $user = $this->user->getUserByRememberToken($token);
+            
+            if ($user) {
+                $this->login($user);
+                return true;
+            }
+            
+            // Invalid token, delete cookie
+            setcookie('remember_token', '', time() - 3600, '/');
+        }
+        
+        return false;
     }
     
+    /**
+     * Get authenticated user
+     * 
+     * @return array|null User data or null if not logged in
+     */
     public function user() {
         if (!$this->check()) {
             return null;
@@ -69,10 +115,27 @@ class AuthService {
         return $this->user->find($_SESSION['user_id']);
     }
     
+    /**
+     * Get authenticated user ID
+     * 
+     * @return int|null User ID or null if not logged in
+     */
     public function id() {
         return $_SESSION['user_id'] ?? null;
     }
     
+    /**
+     * Check if authenticated user is admin
+     * 
+     * @return bool User is admin
+     */
+    public function isAdmin() {
+        return isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true;
+    }
+    
+    /**
+     * Log out user
+     */
     public function logout() {
         // Remove remember token if exists
         if (isset($_COOKIE['remember_token'])) {
@@ -89,10 +152,11 @@ class AuthService {
         }
     }
     
-    public function isAdmin() {
-        return isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true;
-    }
-    
+    /**
+     * Generate CSRF token
+     * 
+     * @return string CSRF token
+     */
     public function generateCsrfToken() {
         if (!isset($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -101,9 +165,13 @@ class AuthService {
         return $_SESSION['csrf_token'];
     }
     
+    /**
+     * Validate CSRF token
+     * 
+     * @param string $token Token to validate
+     * @return bool Token is valid
+     */
     public function validateCsrfToken($token) {
         return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
     }
-    
-    // Additional methods...
 }
