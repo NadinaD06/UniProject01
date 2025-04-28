@@ -2,8 +2,9 @@
 /**
  * Registration view
  */
-$page_title = 'Register - ArtSpace';
-$page_description = 'Create a new ArtSpace account';
+$page_title = 'Register - ' . $config['APP_NAME'];
+$page_description = 'Create your account on ' . $config['APP_NAME'];
+$page_css = 'auth';
 $body_class = 'auth-page register-page';
 ?>
 
@@ -67,6 +68,22 @@ $body_class = 'auth-page register-page';
                 <?php if (isset($_SESSION['validation_errors']['password_confirmation'])): ?>
                 <span class="error"><?php echo $_SESSION['validation_errors']['password_confirmation']; ?></span>
                 <?php endif; ?>
+            </div>
+            
+            <div class="form-group">
+                <label for="age">Age (optional)</label>
+                <input type="number" id="age" name="age" min="13" max="120"
+                       value="<?php echo isset($_SESSION['old_input']['age']) ? htmlspecialchars($_SESSION['old_input']['age']) : ''; ?>">
+            </div>
+            
+            <div class="form-group">
+                <label for="bio">Bio (optional)</label>
+                <textarea id="bio" name="bio" rows="3"><?php echo isset($_SESSION['old_input']['bio']) ? htmlspecialchars($_SESSION['old_input']['bio']) : ''; ?></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="interests">Interests (optional)</label>
+                <textarea id="interests" name="interests" rows="3"><?php echo isset($_SESSION['old_input']['interests']) ? htmlspecialchars($_SESSION['old_input']['interests']) : ''; ?></textarea>
             </div>
             
             <div class="form-group terms">
@@ -190,47 +207,4 @@ $body_class = 'auth-page register-page';
                                 errorSpan.textContent = data.errors[field];
                                 
                                 // Remove any existing error message
-                                const existingError = document.querySelector(`#${field} + .error, #${field} + small + .error`);
-                                if (existingError) {
-                                    existingError.remove();
-                                }
-                                
-                                // Add new error message
-                                document.getElementById(field).parentNode.appendChild(errorSpan);
-                            }
-                        });
-                    }
-                    
-                    // Re-enable submit button
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = 'Create Account';
-                }
-            })
-            .catch(error => {
-                console.error('Registration error:', error);
-                
-                // Display generic error message
-                let alertElement = document.querySelector('.alert');
-                if (!alertElement) {
-                    alertElement = document.createElement('div');
-                    alertElement.className = 'alert alert-error';
-                    registerForm.parentNode.insertBefore(alertElement, registerForm);
-                } else {
-                    alertElement.className = 'alert alert-error';
-                }
-                
-                alertElement.textContent = 'A network error occurred. Please try again.';
-                
-                // Re-enable submit button
-                submitButton.disabled = false;
-                submitButton.innerHTML = 'Create Account';
-            });
-        });
-    });
-</script>
-
-<?php
-// Clear session data
-unset($_SESSION['old_input']);
-unset($_SESSION['validation_errors']);
-?>
+                                const existingError = document.querySelector(`

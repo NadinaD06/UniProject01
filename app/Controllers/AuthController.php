@@ -13,9 +13,9 @@ class AuthController extends Controller {
     private $user;
     private $authService;
     
-    public function __construct() {
-        parent::__construct();
-        $this->user = new User();
+    public function __construct($pdo) {
+        parent::__construct($pdo);
+        $this->user = new User($pdo);
         $this->authService = new AuthService();
     }
     
@@ -100,100 +100,78 @@ class AuthController extends Controller {
      * Process registration request
      */
     public function register() {
-        // Validate request method
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            return $this->redirect('/register');
+        if (!$this->isPost()) {
+            $this->redirect('/register');
         }
         
-        // Get input data
-        $data = $this->getInputData();
+        $username = $this->getPost('username');
+        $email = $this->getPost('email');
+        $password = $this->getPost('password');
+        $confirmPassword = $this->getPost('confirm_password');
+        $age = $this->getPost('age');
+        $bio = $this->getPost('bio');
+        $interests = $this->getPost('interests');
         
-        // Validate CSRF token
-        if (!isset($data['csrf_token']) || !$this->authService->validateCsrfToken($data['csrf_token'])) {
-            return $this->error('Invalid CSRF token', [], 403);
+        // Validate input
+        if (empty($username) || empty($email) || empty($password)) {
+            $this->view('auth/register', [
+                'error' => 'All required fields must be filled out',
+                'username' => $username,
+                'email' => $email,
+                'age' => $age,
+                'bio' => $bio,
+                'interests' => $interests
+            ]);
+            return;
         }
         
-        // Validate required fields
-        $requiredFields = ['username', 'email', 'password', 'password_confirmation'];
-        $errors = [];
-        
-        foreach ($requiredFields as $field) {
-            if (!isset($data[$field]) || empty($data[$field])) {
-                $errors[$field] = ucfirst(str_replace('_', ' ', $field)) . ' is required';
-            }
+        if ($password !== $confirmPassword) {
+            $this->view('auth/register', [
+                'error' => 'Passwords do not match',
+                'username' => $username,
+                'email' => $email,
+                'age' => $age,
+                'bio' => $bio,
+                'interests' => $interests
+            ]);
+            return;
         }
         
-        // Validate password confirmation
-        if (isset($data['password'], $data['password_confirmation']) &&
-            $data['password'] !== $data['password_confirmation']) {
-            $errors['password_confirmation'] = 'Passwords do not match';
+        // Check if username or email already exists
+        if ($this->user->findByUsername($username) || $this->user->findByEmail($email)) {
+            $this->view('auth/register', [
+                'error' => 'Username or email already exists',
+                'username' => $username,
+                'email' => $email,
+                'age' => $age,
+                'bio' => $bio,
+                'interests' => $interests
+            ]);
+            return;
         }
         
-        // Validate email format
-        if (isset($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            $errors['email'] = 'Invalid email format';
-        }
-        
-        // Validate username (only alphanumeric and underscore)
-        if (isset($data['username']) && !preg_match('/^[a-zA-Z0-9_]+$/', $data['username'])) {
-            $errors['username'] = 'Username can only contain letters, numbers, and underscores';
-        }
-        
-        // Check if username already exists
-        if (isset($data['username']) && $this->user->findBy('username', $data['username'])) {
-            $errors['username'] = 'Username already taken';
-        }
-        
-        // Check if email already exists
-        if (isset($data['email']) && $this->user->findBy('email', $data['email'])) {
-            $errors['email'] = 'Email already registered';
-        }
-        
-        // If there are validation errors
-        if (!empty($errors)) {
-            if ($this->isAjaxRequest()) {
-                return $this->error('Validation failed', $errors);
-            }
-            
-            // Set error messages and redirect back to registration page
-            $this->setFlashMessage('Please fix the errors below', 'error');
-            $this->setOldInput($data);
-            $this->setValidationErrors($errors);
-            return $this->redirect('/register');
-        }
-        
-        // Create the user
-        $userData = [
-            'username' => $data['username'],
-            'email' => $data['email'],
-            'password' => $data['password'],
-            'full_name' => $data['full_name'] ?? null
+        // Create user
+        $data = [
+            'username' => $username,
+            'email' => $email,
+            'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            'age' => $age,
+            'bio' => $bio,
+            'interests' => $interests
         ];
         
-        $userId = $this->user->createUser($userData);
-        
-        if (!$userId) {
-            if ($this->isAjaxRequest()) {
-                return $this->error('Failed to create user');
-            }
-            
-            $this->setFlashMessage('Registration failed. Please try again.', 'error');
-            return $this->redirect('/register');
+        if ($this->user->create($data)) {
+            $this->redirect('/login?registered=1');
+        } else {
+            $this->view('auth/register', [
+                'error' => 'Registration failed. Please try again.',
+                'username' => $username,
+                'email' => $email,
+                'age' => $age,
+                'bio' => $bio,
+                'interests' => $interests
+            ]);
         }
-        
-        // Log the user in
-        $user = $this->user->find($userId);
-        $this->authService->login($user);
-        
-        if ($this->isAjaxRequest()) {
-            return $this->success([
-                'redirect' => '/feed'
-            ], 'Registration successful');
-        }
-        
-        // Set success message and redirect to feed
-        $this->setFlashMessage('Registration successful! Welcome to ArtSpace.', 'success');
-        return $this->redirect('/feed');
     }
     
     /**

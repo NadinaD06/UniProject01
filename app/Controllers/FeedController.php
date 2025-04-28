@@ -10,17 +10,20 @@ use App\Core\Controller;
 use App\Models\Post;
 use App\Models\User;
 use App\Services\CacheService;
+use App\Models\Notification;
 
 class FeedController extends Controller {
     private $post;
     private $user;
     private $cache;
+    private $notification;
     
-    public function __construct() {
-        parent::__construct();
-        $this->post = new Post();
-        $this->user = new User();
+    public function __construct($pdo) {
+        parent::__construct($pdo);
+        $this->post = new Post($pdo);
+        $this->user = new User($pdo);
         $this->cache = new CacheService();
+        $this->notification = new Notification($pdo);
     }
     
     /**
@@ -359,5 +362,112 @@ class FeedController extends Controller {
         $this->cache->forget("user_{$userId}_feed_following_*");
         $this->cache->forget("user_{$userId}_feed_trending_*");
         $this->cache->forget("user_{$userId}_feed_latest_*");
+    }
+    
+    public function create() {
+        if (!$this->isPost()) {
+            $this->redirect('/feed');
+        }
+        
+        $content = $this->getPost('content');
+        $imageUrl = $this->getPost('image_url');
+        $location = $this->getPost('location');
+        
+        if (empty($content)) {
+            $this->json([
+                'success' => false,
+                'message' => 'Post content cannot be empty'
+            ]);
+            return;
+        }
+        
+        $data = [
+            'user_id' => $_SESSION['user_id'],
+            'content' => $content,
+            'image_url' => $imageUrl,
+            'location' => $location
+        ];
+        
+        if ($this->post->create($data)) {
+            $this->json([
+                'success' => true,
+                'message' => 'Post created successfully'
+            ]);
+        } else {
+            $this->json([
+                'success' => false,
+                'message' => 'Failed to create post'
+            ]);
+        }
+    }
+    
+    public function like() {
+        if (!$this->isPost()) {
+            $this->redirect('/feed');
+        }
+        
+        $postId = $this->getPost('post_id');
+        
+        if ($this->post->like($postId, $_SESSION['user_id'])) {
+            $this->notification->createLikeNotification($postId, $postId, $_SESSION['user_id']);
+            $this->json([
+                'success' => true,
+                'message' => 'Post liked successfully'
+            ]);
+        } else {
+            $this->json([
+                'success' => false,
+                'message' => 'Failed to like post'
+            ]);
+        }
+    }
+    
+    public function unlike() {
+        if (!$this->isPost()) {
+            $this->redirect('/feed');
+        }
+        
+        $postId = $this->getPost('post_id');
+        
+        if ($this->post->unlike($postId, $_SESSION['user_id'])) {
+            $this->json([
+                'success' => true,
+                'message' => 'Post unliked successfully'
+            ]);
+        } else {
+            $this->json([
+                'success' => false,
+                'message' => 'Failed to unlike post'
+            ]);
+        }
+    }
+    
+    public function delete() {
+        if (!$this->isPost()) {
+            $this->redirect('/feed');
+        }
+        
+        $postId = $this->getPost('post_id');
+        $post = $this->post->getById($postId);
+        
+        if (!$post || $post['user_id'] != $_SESSION['user_id']) {
+            $this->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ]);
+            return;
+        }
+        
+        if ($this->post->delete($postId)) {
+            $this->json([
+                'success' => true,
+                'message' => 'Post deleted successfully'
+            ]);
+        } else {
+            $this->json([
+                'success' => false,
+                'message' => 'Failed to delete post'
+            ]);
+        }
     }
 }

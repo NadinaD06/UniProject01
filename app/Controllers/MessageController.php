@@ -16,10 +16,10 @@ class MessageController extends Controller {
     private $user;
     private $webSocket;
     
-    public function __construct() {
-        parent::__construct();
-        $this->message = new Message();
-        $this->user = new User();
+    public function __construct($pdo) {
+        parent::__construct($pdo);
+        $this->message = new Message($pdo);
+        $this->user = new User($pdo);
         
         // Initialize WebSocket service if WebSockets are enabled
         if (defined('WEBSOCKET_ENABLED') && WEBSOCKET_ENABLED) {
@@ -33,17 +33,13 @@ class MessageController extends Controller {
      * @return string Rendered view
      */
     public function index() {
-        // Check if user is authenticated
-        if (!$this->auth->check()) {
-            return $this->redirect('/login');
+        if (!isset($_SESSION['user_id'])) {
+            $this->redirect('/login');
         }
         
-        $userId = $this->auth->id();
+        $conversations = $this->message->getConversations($_SESSION['user_id']);
         
-        // Get user conversations
-        $conversations = $this->message->getUserConversations($userId);
-        
-        return $this->view('messages/index', [
+        $this->view('messages/index', [
             'conversations' => $conversations
         ]);
     }
@@ -53,49 +49,39 @@ class MessageController extends Controller {
      * 
      * @return string Rendered view
      */
-    public function conversation() {
-        // Check if user is authenticated
-        if (!$this->auth->check()) {
-            return $this->redirect('/login');
+    public function conversation($username) {
+        if (!isset($_SESSION['user_id'])) {
+            $this->redirect('/login');
         }
         
-        $userId = $this->auth->id();
-        $username = isset($_GET['username']) ? $_GET['username'] : null;
-        
-        // Validate username
-        if (!$username) {
-            return $this->redirect('/messages');
+        $user = $this->user->findByUsername($username);
+        if (!$user) {
+            $this->redirect('/messages');
         }
         
-        // Get other user by username
-        $otherUser = $this->user->findBy('username', $username);
+        $page = $this->getQuery('page', 1);
+        $limit = 20;
+        $offset = ($page - 1) * $limit;
         
-        if (!$otherUser) {
-            $this->setFlashMessage('User not found', 'error');
-            return $this->redirect('/messages');
-        }
-        
-        $otherUserId = $otherUser['id'];
-        
-        // Check if users are blocked
-        if ($this->user->isUserBlocked($userId, $otherUserId) || $this->user->isUserBlocked($otherUserId, $userId)) {
-            $this->setFlashMessage('You cannot message this user', 'error');
-            return $this->redirect('/messages');
-        }
-        
-        // Get messages between users
-        $messages = $this->message->getConversation($userId, $otherUserId, 50, 0);
+        $messages = $this->message->getConversation(
+            $_SESSION['user_id'],
+            $user['id'],
+            $limit,
+            $offset
+        );
         
         // Mark messages as read
-        $this->message->markMessagesAsRead($otherUserId, $userId);
+        foreach ($messages as $message) {
+            if ($message['receiver_id'] == $_SESSION['user_id'] && !$message['read_at']) {
+                $this->message->markAsRead($message['id']);
+            }
+        }
         
-        // Get user conversations for sidebar
-        $conversations = $this->message->getUserConversations($userId);
-        
-        return $this->view('messages/conversation', [
+        $this->view('messages/conversation', [
+            'user' => $user,
             'messages' => $messages,
-            'conversations' => $conversations,
-            'other_user' => $otherUser
+            'page' => $page,
+            'hasMore' => count($messages) === $limit
         ]);
     }
     
@@ -105,56 +91,38 @@ class MessageController extends Controller {
      * @return void JSON response
      */
     public function send() {
-        // Check if user is authenticated
-        if (!$this->auth->check()) {
-            return $this->error('Unauthorized', [], 401);
+        if (!$this->isPost()) {
+            $this->redirect('/messages');
         }
         
-        // Get input data
-        $data = $this->getInputData();
-        $userId = $this->auth->id();
+        $receiverId = $this->getPost('receiver_id');
+        $content = $this->getPost('content');
         
-        // Validate required fields
-        if (!isset($data['receiver_id']) || !isset($data['content']) || empty(trim($data['content']))) {
-            return $this->error('Receiver and content are required');
+        if (empty($content)) {
+            $this->json([
+                'success' => false,
+                'message' => 'Message cannot be empty'
+            ]);
+            return;
         }
         
-        $receiverId = (int)$data['receiver_id'];
-        $content = trim($data['content']);
+        $data = [
+            'sender_id' => $_SESSION['user_id'],
+            'receiver_id' => $receiverId,
+            'content' => $content
+        ];
         
-        // Validate receiver exists
-        $receiver = $this->user->find($receiverId);
-        
-        if (!$receiver) {
-            return $this->error('Receiver not found');
+        if ($this->message->send($data)) {
+            $this->json([
+                'success' => true,
+                'message' => 'Message sent successfully'
+            ]);
+        } else {
+            $this->json([
+                'success' => false,
+                'message' => 'Failed to send message'
+            ]);
         }
-        
-        // Check if users are blocked
-        if ($this->user->isUserBlocked($userId, $receiverId) || $this->user->isUserBlocked($receiverId, $userId)) {
-            return $this->error('You cannot message this user');
-        }
-        
-        // Send the message
-        $messageId = $this->message->sendMessage($userId, $receiverId, $content);
-        
-        if (!$messageId) {
-            return $this->error('Failed to send message');
-        }
-        
-        // Get new message details
-        $newMessage = $this->message->getMessageById($messageId);
-        
-        // Format message for response
-        $formattedMessage = $this->formatMessage($newMessage);
-        
-        // Send real-time notification via WebSocket if enabled
-        if (isset($this->webSocket)) {
-            $this->sendMessageNotification($newMessage);
-        }
-        
-        return $this->success([
-            'message' => $formattedMessage
-        ]);
     }
     
     /**
@@ -239,19 +207,13 @@ class MessageController extends Controller {
      * @return void JSON response
      */
     public function getUnreadCount() {
-        // Check if user is authenticated
-        if (!$this->auth->check()) {
-            return $this->error('Unauthorized', [], 401);
+        if (!isset($_SESSION['user_id'])) {
+            $this->json(['count' => 0]);
+            return;
         }
         
-        $userId = $this->auth->id();
-        
-        // Get unread count
-        $count = $this->message->getUnreadCount($userId);
-        
-        return $this->success([
-            'count' => $count
-        ]);
+        $count = $this->message->getUnreadCount($_SESSION['user_id']);
+        $this->json(['count' => $count]);
     }
     
     /**

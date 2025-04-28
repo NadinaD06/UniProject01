@@ -7,21 +7,21 @@ try {
     $tables = [
         'users' => "
             CREATE TABLE IF NOT EXISTS users (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 username VARCHAR(50) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
                 email VARCHAR(100) NOT NULL UNIQUE,
-                age INT,
+                age INTEGER,
                 bio TEXT,
-                interests LONGTEXT,
+                interests TEXT,
                 is_admin BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         ",
         'posts' => "
             CREATE TABLE IF NOT EXISTS posts (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NOT NULL,
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
                 content TEXT,
                 image_url VARCHAR(255),
                 location VARCHAR(255),
@@ -31,9 +31,9 @@ try {
         ",
         'comments' => "
             CREATE TABLE IF NOT EXISTS comments (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                post_id INT NOT NULL,
-                user_id INT NOT NULL,
+                id SERIAL PRIMARY KEY,
+                post_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
                 content TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
@@ -42,9 +42,9 @@ try {
         ",
         'likes' => "
             CREATE TABLE IF NOT EXISTS likes (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                post_id INT NOT NULL,
-                user_id INT NOT NULL,
+                id SERIAL PRIMARY KEY,
+                post_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -53,9 +53,9 @@ try {
         ",
         'messages' => "
             CREATE TABLE IF NOT EXISTS messages (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                sender_id INT NOT NULL,
-                receiver_id INT NOT NULL,
+                id SERIAL PRIMARY KEY,
+                sender_id INTEGER NOT NULL,
+                receiver_id INTEGER NOT NULL,
                 content TEXT NOT NULL,
                 sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -64,9 +64,9 @@ try {
         ",
         'blocks' => "
             CREATE TABLE IF NOT EXISTS blocks (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                blocker_id INT NOT NULL,
-                blocked_id INT NOT NULL,
+                id SERIAL PRIMARY KEY,
+                blocker_id INTEGER NOT NULL,
+                blocked_id INTEGER NOT NULL,
                 blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (blocker_id) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY (blocked_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -75,9 +75,9 @@ try {
         ",
         'reports' => "
             CREATE TABLE IF NOT EXISTS reports (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                reporter_id INT NOT NULL,
-                reported_id INT NOT NULL,
+                id SERIAL PRIMARY KEY,
+                reporter_id INTEGER NOT NULL,
+                reported_id INTEGER NOT NULL,
                 reason VARCHAR(255) NOT NULL,
                 reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,

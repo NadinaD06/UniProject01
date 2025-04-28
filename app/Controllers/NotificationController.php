@@ -14,9 +14,9 @@ class NotificationController extends Controller {
     private $notification;
     private $webSocket;
     
-    public function __construct() {
-        parent::__construct();
-        $this->notification = new Notification();
+    public function __construct($pdo) {
+        parent::__construct($pdo);
+        $this->notification = new Notification($pdo);
         
         // Initialize WebSocket service if WebSockets are enabled
         if (defined('WEBSOCKET_ENABLED') && WEBSOCKET_ENABLED) {
@@ -30,33 +30,24 @@ class NotificationController extends Controller {
      * @return string Rendered view
      */
     public function index() {
-        // Check if user is authenticated
-        if (!$this->auth->check()) {
-            return $this->redirect('/login');
+        if (!isset($_SESSION['user_id'])) {
+            $this->redirect('/login');
         }
         
-        $userId = $this->auth->id();
-        
-        // Get notifications for user with pagination
-        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $page = $this->getQuery('page', 1);
         $limit = 20;
         $offset = ($page - 1) * $limit;
         
-        // Get notifications
-        $notifications = $this->notification->getForUser($userId, $limit, $offset);
+        $notifications = $this->notification->getForUser(
+            $_SESSION['user_id'],
+            $limit,
+            $offset
+        );
         
-        // Get total count for pagination
-        $totalCount = $this->notification->getCountForUser($userId);
-        $totalPages = ceil($totalCount / $limit);
-        
-        // Mark all as read
-        $this->notification->markAsRead($userId);
-        
-        return $this->view('notifications/index', [
+        $this->view('notifications/index', [
             'notifications' => $notifications,
-            'current_page' => $page,
-            'total_pages' => $totalPages,
-            'total_count' => $totalCount
+            'page' => $page,
+            'hasMore' => count($notifications) === $limit
         ]);
     }
     
@@ -66,19 +57,13 @@ class NotificationController extends Controller {
      * @return void JSON response
      */
     public function getUnreadCount() {
-        // Check if user is authenticated
-        if (!$this->auth->check()) {
-            return $this->error('Unauthorized', [], 401);
+        if (!isset($_SESSION['user_id'])) {
+            $this->json(['count' => 0]);
+            return;
         }
         
-        $userId = $this->auth->id();
-        
-        // Get unread count
-        $count = $this->notification->getUnreadCount($userId);
-        
-        return $this->success([
-            'count' => $count
-        ]);
+        $count = $this->notification->getUnreadCount($_SESSION['user_id']);
+        $this->json(['count' => $count]);
     }
     
     /**
@@ -87,30 +72,22 @@ class NotificationController extends Controller {
      * @return void JSON response
      */
     public function markAsRead() {
-        // Check if user is authenticated
-        if (!$this->auth->check()) {
-            return $this->error('Unauthorized', [], 401);
+        if (!$this->isPost()) {
+            $this->redirect('/notifications');
         }
         
-        // Get input data
-        $data = $this->getInputData();
-        $userId = $this->auth->id();
+        $notificationId = $this->getPost('notification_id');
         
-        // Get notification IDs to mark as read
-        $notificationIds = $data['notification_ids'] ?? null;
-        
-        // Validate notification IDs
-        if (!is_null($notificationIds) && !is_array($notificationIds)) {
-            return $this->error('Invalid notification IDs format');
-        }
-        
-        // Mark notifications as read
-        $success = $this->notification->markAsRead($userId, $notificationIds);
-        
-        if ($success) {
-            return $this->success([], 'Notifications marked as read');
+        if ($this->notification->markAsRead($notificationId)) {
+            $this->json([
+                'success' => true,
+                'message' => 'Notification marked as read'
+            ]);
         } else {
-            return $this->error('Failed to mark notifications as read');
+            $this->json([
+                'success' => false,
+                'message' => 'Failed to mark notification as read'
+            ]);
         }
     }
     
@@ -120,20 +97,20 @@ class NotificationController extends Controller {
      * @return void JSON response
      */
     public function markAllAsRead() {
-        // Check if user is authenticated
-        if (!$this->auth->check()) {
-            return $this->error('Unauthorized', [], 401);
+        if (!$this->isPost()) {
+            $this->redirect('/notifications');
         }
         
-        $userId = $this->auth->id();
-        
-        // Mark all notifications as read
-        $success = $this->notification->markAsRead($userId);
-        
-        if ($success) {
-            return $this->success([], 'All notifications marked as read');
+        if ($this->notification->markAllAsRead($_SESSION['user_id'])) {
+            $this->json([
+                'success' => true,
+                'message' => 'All notifications marked as read'
+            ]);
         } else {
-            return $this->error('Failed to mark notifications as read');
+            $this->json([
+                'success' => false,
+                'message' => 'Failed to mark notifications as read'
+            ]);
         }
     }
     
