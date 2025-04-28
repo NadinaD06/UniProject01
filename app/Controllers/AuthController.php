@@ -386,43 +386,20 @@ class AuthController extends Controller {
     }
     
     /**
-     * Check if a request is an AJAX request
-     * 
-     * @return bool
-     */
-    private function isAjaxRequest() {
-        return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
-               strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
-    }
-    
-    /**
-     * Set flash message
-     * 
-     * @param string $message
-     * @param string $type
-     */
-    private function setFlashMessage($message, $type = 'info') {
-        $_SESSION['flash_message'] = [
-            'message' => $message,
-            'type' => $type
-        ];
-    }
-    
-    /**
-     * Set old input data
+     * Set old input data in session
      * 
      * @param array $data
      */
-    private function setOldInput($data) {
+    protected function setOldInput($data) {
         $_SESSION['old_input'] = $data;
     }
     
     /**
-     * Set validation errors
+     * Set validation errors in session
      * 
      * @param array $errors
      */
-    private function setValidationErrors($errors) {
+    protected function setValidationErrors($errors) {
         $_SESSION['validation_errors'] = $errors;
     }
 }
