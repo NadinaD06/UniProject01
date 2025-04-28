@@ -37,49 +37,25 @@ class AuthController extends Controller {
      * Process login request
      */
     public function login() {
-        // Validate request method
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            return $this->redirect('/login');
-        }
-        
-        // Get input data
-        $data = $this->getInputData();
-        
-        // Validate CSRF token
-        if (!isset($data['csrf_token']) || !$this->authService->validateCsrfToken($data['csrf_token'])) {
-            return $this->error('Invalid CSRF token', [], 403);
-        }
-        
-        // Validate required fields
-        if (!isset($data['username']) || !isset($data['password'])) {
-            return $this->error('Username and password are required');
-        }
-        
-        $username = $data['username'];
-        $password = $data['password'];
-        $remember = isset($data['remember']) && $data['remember'] === 'on';
-        
-        // Attempt to authenticate
-        if ($this->authService->attempt($username, $password, $remember)) {
-            // If this is an AJAX request, return JSON response
-            if ($this->isAjaxRequest()) {
-                return $this->success([
-                    'redirect' => '/feed'
-                ], 'Login successful');
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $username = $_POST['username'] ?? '';
+            $password = $_POST['password'] ?? '';
+
+            $stmt = $this->pdo->prepare("SELECT * FROM users WHERE username = ?");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch();
+
+            if ($user && password_verify($password, $user['password_hash'])) {
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['username'] = $user['username'];
+                header('Location: /feed');
+                exit;
+            } else {
+                $error = "Invalid username or password";
             }
-            
-            // Otherwise redirect to feed
-            return $this->redirect('/feed');
         }
-        
-        // Authentication failed
-        if ($this->isAjaxRequest()) {
-            return $this->error('Invalid credentials');
-        }
-        
-        // Set error message and redirect to login page
-        $this->setFlashMessage('Invalid username or password', 'error');
-        return $this->redirect('/login');
+
+        require_once __DIR__ . '/../Views/auth/login.php';
     }
     
     /**
@@ -100,91 +76,56 @@ class AuthController extends Controller {
      * Process registration request
      */
     public function register() {
-        if (!$this->isPost()) {
-            $this->redirect('/register');
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $username = $_POST['username'] ?? '';
+            $email = $_POST['email'] ?? '';
+            $password = $_POST['password'] ?? '';
+            $confirm_password = $_POST['confirm_password'] ?? '';
+
+            // Validate input
+            $errors = [];
+            if (strlen($username) < 3) {
+                $errors[] = "Username must be at least 3 characters long";
+            }
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $errors[] = "Invalid email format";
+            }
+            if (strlen($password) < 6) {
+                $errors[] = "Password must be at least 6 characters long";
+            }
+            if ($password !== $confirm_password) {
+                $errors[] = "Passwords do not match";
+            }
+
+            // Check if username or email already exists
+            $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ? OR email = ?");
+            $stmt->execute([$username, $email]);
+            if ($stmt->fetchColumn() > 0) {
+                $errors[] = "Username or email already exists";
+            }
+
+            if (empty($errors)) {
+                $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                $stmt = $this->pdo->prepare("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)");
+                $stmt->execute([$username, $email, $password_hash]);
+
+                $_SESSION['user_id'] = $this->pdo->lastInsertId();
+                $_SESSION['username'] = $username;
+                header('Location: /feed');
+                exit;
+            }
         }
-        
-        $username = $this->getPost('username');
-        $email = $this->getPost('email');
-        $password = $this->getPost('password');
-        $confirmPassword = $this->getPost('confirm_password');
-        $age = $this->getPost('age');
-        $bio = $this->getPost('bio');
-        $interests = $this->getPost('interests');
-        
-        // Validate input
-        if (empty($username) || empty($email) || empty($password)) {
-            $this->view('auth/register', [
-                'error' => 'All required fields must be filled out',
-                'username' => $username,
-                'email' => $email,
-                'age' => $age,
-                'bio' => $bio,
-                'interests' => $interests
-            ]);
-            return;
-        }
-        
-        if ($password !== $confirmPassword) {
-            $this->view('auth/register', [
-                'error' => 'Passwords do not match',
-                'username' => $username,
-                'email' => $email,
-                'age' => $age,
-                'bio' => $bio,
-                'interests' => $interests
-            ]);
-            return;
-        }
-        
-        // Check if username or email already exists
-        if ($this->user->findByUsername($username) || $this->user->findByEmail($email)) {
-            $this->view('auth/register', [
-                'error' => 'Username or email already exists',
-                'username' => $username,
-                'email' => $email,
-                'age' => $age,
-                'bio' => $bio,
-                'interests' => $interests
-            ]);
-            return;
-        }
-        
-        // Create user
-        $data = [
-            'username' => $username,
-            'email' => $email,
-            'password_hash' => password_hash($password, PASSWORD_DEFAULT),
-            'age' => $age,
-            'bio' => $bio,
-            'interests' => $interests
-        ];
-        
-        if ($this->user->create($data)) {
-            $this->redirect('/login?registered=1');
-        } else {
-            $this->view('auth/register', [
-                'error' => 'Registration failed. Please try again.',
-                'username' => $username,
-                'email' => $email,
-                'age' => $age,
-                'bio' => $bio,
-                'interests' => $interests
-            ]);
-        }
+
+        require_once __DIR__ . '/../Views/auth/register.php';
     }
     
     /**
      * Process logout request
      */
     public function logout() {
-        $this->authService->logout();
-        
-        if ($this->isAjaxRequest()) {
-            return $this->success([], 'Logged out successfully');
-        }
-        
-        return $this->redirect('/login');
+        session_destroy();
+        header('Location: /login');
+        exit;
     }
     
     /**
