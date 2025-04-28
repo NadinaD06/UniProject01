@@ -1,23 +1,29 @@
 <?php
-require_once 'config.php';
-
-// Set connection timeout
-ini_set('default_socket_timeout', 5); // 5 seconds timeout
+// Load configuration
+$config = require_once 'config/config.php';
 
 try {
-    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+    // Connect to PostgreSQL database
+    $pdo = new PDO(
+        "pgsql:host={$config['DB_HOST']};dbname={$config['DB_NAME']};port=5432",
+        $config['DB_USER'],
+        $config['DB_PASS']
+    );
     
-    // Set connection timeout
-    $conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
+    // Set the PDO error mode to exception
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
-    if ($conn->connect_error) {
-        throw new Exception("Connection failed: " . $conn->connect_error);
+    echo "Database connection successful!<br>";
+    
+    // Test if tables exist
+    $tables = ['users', 'posts', 'comments', 'likes', 'follows'];
+    foreach ($tables as $table) {
+        $stmt = $pdo->query("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = '$table')");
+        $exists = $stmt->fetchColumn();
+        echo "Table '$table' exists: " . ($exists ? 'Yes' : 'No') . "<br>";
     }
     
-    echo "Connected successfully";
-    $conn->close();
-    
-} catch (Exception $e) {
-    echo "Error: " . $e->getMessage();
+} catch (PDOException $e) {
+    die("Connection failed: " . $e->getMessage());
 }
 ?>
