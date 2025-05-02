@@ -38,6 +38,15 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
+    // Check in Core directory specifically
+    $coreFile = APP_PATH . '/Core/' . basename($file);
+    error_log("Checking core file: " . $coreFile);
+    if (file_exists($coreFile)) {
+        error_log("Found file in core directory: " . $coreFile);
+        require $coreFile;
+        return true;
+    }
+    
     // Check in root directory
     $rootFile = ROOT_PATH . '/' . $file;
     error_log("Checking root file: " . $rootFile);
@@ -47,7 +56,7 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
-    error_log("Class file not found: " . $class . " (tried: " . $appFile . " and " . $rootFile . ")");
+    error_log("Class file not found: " . $class . " (tried: " . $appFile . ", " . $coreFile . ", and " . $rootFile . ")");
     return false;
 });
 
