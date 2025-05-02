@@ -4,7 +4,10 @@
  * Base model class for database operations
  */
 
-namespace App\Core;
+namespace App\Models;
+
+use PDO;
+use App\Core\Database;
 
 abstract class Model {
     protected $db;
@@ -16,8 +19,8 @@ abstract class Model {
     /**
      * Constructor
      */
-    public function __construct($db) {
-        $this->db = $db;
+    public function __construct(PDO $db = null) {
+        $this->db = $db ?? Database::getInstance()->getConnection();
     }
     
     /**
