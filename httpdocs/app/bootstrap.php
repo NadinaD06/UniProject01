@@ -13,8 +13,8 @@ ini_set('display_errors', 1);
 // Define base paths
 define('ROOT_PATH', dirname(__DIR__));
 define('APP_PATH', __DIR__);
-define('CONFIG_PATH', ROOT_PATH . '/config');
-define('PUBLIC_PATH', ROOT_PATH . '/public');
+define('CONFIG_PATH', dirname(ROOT_PATH) . '/config');
+define('PUBLIC_PATH', ROOT_PATH);
 define('UPLOAD_PATH', PUBLIC_PATH . '/uploads');
 
 // Log paths for debugging
