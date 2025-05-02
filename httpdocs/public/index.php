@@ -3,8 +3,22 @@
  * Front controller - All requests are routed through this file
  */
 
-// Load the bootstrap file
-require_once dirname(__DIR__) . '/app/bootstrap.php';
+// Error handling
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+try {
+    // Load the bootstrap file
+    require_once dirname(__DIR__) . '/app/bootstrap.php';
+} catch (Exception $e) {
+    // Log the error
+    error_log($e->getMessage());
+    
+    // Show a user-friendly error message
+    header('HTTP/1.1 500 Internal Server Error');
+    echo 'An error occurred. Please try again later.';
+    exit;
+}
 
 // Define the application path
 define('BASE_PATH', dirname(__DIR__));
