@@ -215,4 +215,97 @@ a:hover {
 
 .list-group-item:hover .delete-notification {
     opacity: 1;
+}
+
+/* Settings Page Styles */
+.settings-nav .list-group-item {
+    border: none;
+    padding: 0.75rem 1rem;
+    color: #495057;
+    transition: all 0.2s ease;
+}
+
+.settings-nav .list-group-item:hover {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+.settings-nav .list-group-item.active {
+    background-color: #e9ecef;
+    color: #212529;
+    font-weight: 500;
+}
+
+.settings-nav .list-group-item i {
+    width: 20px;
+    text-align: center;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
+.alert {
+    border: none;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+    font-size: 0.875rem;
+}
+
+.text-muted {
+    color: #6c757d !important;
+    font-size: 0.875rem;
 } 
