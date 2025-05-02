@@ -1,16 +1,16 @@
 <?php
 /**
- * Main entry point for the application
+ * Front controller - All requests are routed through this file
  */
+
+// Load the bootstrap file
+require_once dirname(__DIR__) . '/app/bootstrap.php';
 
 // Define the application path
 define('BASE_PATH', dirname(__DIR__));
 
 // Load configuration
 require_once BASE_PATH . '/config/config.php';
-
-// Load bootstrap file
-require_once BASE_PATH . '/app/bootstrap.php';
 
 // Start session
 session_start();

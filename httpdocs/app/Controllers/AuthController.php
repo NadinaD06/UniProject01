@@ -8,14 +8,16 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Models\User;
 use App\Services\AuthService;
+use PDO;
+use PDOException;
 
 class AuthController extends Controller {
     private $user;
     private $authService;
     
-    public function __construct($pdo) {
-        parent::__construct($pdo);
-        $this->user = new User($pdo);
+    public function __construct() {
+        parent::__construct();
+        $this->user = new User($this->pdo);
         $this->authService = new AuthService();
     }
     
@@ -38,24 +40,32 @@ class AuthController extends Controller {
      */
     public function login() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $username = $_POST['username'] ?? '';
-            $password = $_POST['password'] ?? '';
-
-            $stmt = $this->pdo->prepare("SELECT * FROM users WHERE username = ?");
-            $stmt->execute([$username]);
-            $user = $stmt->fetch();
-
-            if ($user && password_verify($password, $user['password_hash'])) {
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['username'] = $user['username'];
-                header('Location: /feed');
+            $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
+            $password = $_POST['password'];
+            
+            try {
+                $stmt = $this->pdo->prepare("SELECT * FROM users WHERE email = ?");
+                $stmt->execute([$email]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($user && password_verify($password, $user['password'])) {
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['username'] = $user['username'];
+                    $_SESSION['is_admin'] = $user['is_admin'];
+                    
+                    header('Location: /home');
+                    exit;
+                } else {
+                    $_SESSION['errors'] = ['Invalid email or password'];
+                    header('Location: /login');
+                    exit;
+                }
+            } catch (PDOException $e) {
+                $_SESSION['errors'] = ['An error occurred. Please try again.'];
+                header('Location: /login');
                 exit;
-            } else {
-                $error = "Invalid username or password";
             }
         }
-
-        require_once __DIR__ . '/../Views/auth/login.php';
     }
     
     /**
@@ -77,46 +87,63 @@ class AuthController extends Controller {
      */
     public function register() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $username = $_POST['username'] ?? '';
-            $email = $_POST['email'] ?? '';
-            $password = $_POST['password'] ?? '';
-            $confirm_password = $_POST['confirm_password'] ?? '';
-
-            // Validate input
+            $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING);
+            $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
+            $password = $_POST['password'];
+            $confirm_password = $_POST['confirm_password'];
+            
             $errors = [];
-            if (strlen($username) < 3) {
-                $errors[] = "Username must be at least 3 characters long";
+            
+            // Validate input
+            if (empty($username)) {
+                $errors[] = 'Username is required';
             }
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $errors[] = "Invalid email format";
+            if (empty($email)) {
+                $errors[] = 'Email is required';
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $errors[] = 'Invalid email format';
             }
-            if (strlen($password) < 6) {
-                $errors[] = "Password must be at least 6 characters long";
+            if (empty($password)) {
+                $errors[] = 'Password is required';
+            } elseif (strlen($password) < 6) {
+                $errors[] = 'Password must be at least 6 characters';
             }
             if ($password !== $confirm_password) {
-                $errors[] = "Passwords do not match";
+                $errors[] = 'Passwords do not match';
             }
-
-            // Check if username or email already exists
-            $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ? OR email = ?");
-            $stmt->execute([$username, $email]);
-            if ($stmt->fetchColumn() > 0) {
-                $errors[] = "Username or email already exists";
-            }
-
+            
             if (empty($errors)) {
-                $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $this->pdo->prepare("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)");
-                $stmt->execute([$username, $email, $password_hash]);
-
-                $_SESSION['user_id'] = $this->pdo->lastInsertId();
-                $_SESSION['username'] = $username;
-                header('Location: /feed');
+                try {
+                    // Check if email already exists
+                    $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = ?");
+                    $stmt->execute([$email]);
+                    if ($stmt->fetch()) {
+                        $errors[] = 'Email already registered';
+                    } else {
+                        // Create new user
+                        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                        $stmt = $this->pdo->prepare("INSERT INTO users (username, email, password, created_at) VALUES (?, ?, ?, NOW())");
+                        $stmt->execute([$username, $email, $hashed_password]);
+                        
+                        $_SESSION['success'] = 'Registration successful! Please login.';
+                        header('Location: /login');
+                        exit;
+                    }
+                } catch (PDOException $e) {
+                    $errors[] = 'An error occurred. Please try again.';
+                }
+            }
+            
+            if (!empty($errors)) {
+                $_SESSION['errors'] = $errors;
+                $_SESSION['form_data'] = [
+                    'username' => $username,
+                    'email' => $email
+                ];
+                header('Location: /register');
                 exit;
             }
         }
-
-        require_once __DIR__ . '/../Views/auth/register.php';
     }
     
     /**

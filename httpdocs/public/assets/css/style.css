@@ -404,7 +404,7 @@ a:hover {
 /* Forms */
 .form-control:focus {
     border-color: #86b7fe;
-    box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
 
 /* Alerts */
@@ -671,4 +671,98 @@ a:hover {
     .activity-item .timestamp {
         color: #a0aec0;
     }
+    
+    body {
+        background-color: #212529;
+        color: #f8f9fa;
+    }
+    
+    .card {
+        background-color: #2c3034;
+        border-color: #373b3e;
+    }
+    
+    .card-header {
+        background-color: #2c3034;
+        border-bottom-color: #373b3e;
+    }
+    
+    .form-control {
+        background-color: #2c3034;
+        border-color: #373b3e;
+        color: #f8f9fa;
+    }
+    
+    .form-control:focus {
+        background-color: #2c3034;
+        color: #f8f9fa;
+    }
+    
+    .btn-outline-primary {
+        color: #86b7fe;
+        border-color: #86b7fe;
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: #86b7fe;
+        color: #212529;
+    }
+}
+
+/* Custom styles */
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.alert {
+    border: none;
+    border-radius: 0.25rem;
+}
+
+/* Map container styles */
+#map {
+    border-radius: 0.25rem;
+    border: 1px solid #dee2e6;
+}
+
+/* Post styles */
+.post-content {
+    white-space: pre-wrap;
+}
+
+.post-image {
+    max-width: 100%;
+    border-radius: 0.25rem;
+}
+
+/* Comment styles */
+.comment {
+    border-left: 3px solid #dee2e6;
+    padding-left: 1rem;
+    margin-bottom: 1rem;
 } 

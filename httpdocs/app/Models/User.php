@@ -345,4 +345,46 @@ class User extends Model {
         
         return $stmt->fetchAll();
     }
+
+    public function findById($id) {
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    public function create($username, $email, $password) {
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $this->db->prepare("INSERT INTO users (username, email, password, created_at) VALUES (?, ?, ?, NOW())");
+        return $stmt->execute([$username, $email, $hashed_password]);
+    }
+    
+    public function update($id, $data) {
+        $allowed_fields = ['username', 'email', 'password', 'bio', 'profile_image'];
+        $updates = [];
+        $values = [];
+        
+        foreach ($data as $field => $value) {
+            if (in_array($field, $allowed_fields)) {
+                if ($field === 'password') {
+                    $value = password_hash($value, PASSWORD_DEFAULT);
+                }
+                $updates[] = "$field = ?";
+                $values[] = $value;
+            }
+        }
+        
+        if (empty($updates)) {
+            return false;
+        }
+        
+        $values[] = $id;
+        $sql = "UPDATE users SET " . implode(', ', $updates) . " WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute($values);
+    }
+    
+    public function delete($id) {
+        $stmt = $this->db->prepare("DELETE FROM users WHERE id = ?");
+        return $stmt->execute([$id]);
+    }
 } 

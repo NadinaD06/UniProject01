@@ -1,16 +1,10 @@
 # .htaccess for ArtSpace application
 # Enables clean URLs and forwards all requests to index.php
 
-# Enable the rewrite engine
+# Redirect all traffic to the public directory
 RewriteEngine On
-
-# Set the base directory
-RewriteBase /
-
-# Handle front controller
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^ index.php [L]
+RewriteRule ^$ httpdocs/public/ [L]
+RewriteRule (.*) httpdocs/public/$1 [L]
 
 # Prevent directory listing
 Options -Indexes

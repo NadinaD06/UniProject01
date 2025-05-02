@@ -10,12 +10,14 @@ abstract class Model {
     protected $db;
     protected $table;
     protected $primaryKey = 'id';
+    protected $fillable = [];
+    protected $hidden = [];
     
     /**
      * Constructor
      */
-    public function __construct() {
-        $this->db = Database::getInstance();
+    public function __construct($db) {
+        $this->db = $db;
     }
     
     /**
@@ -25,52 +27,19 @@ abstract class Model {
      * @return array|false Record data or false if not found
      */
     public function find($id) {
-        return $this->db->fetch(
-            "SELECT * FROM {$this->table} WHERE {$this->primaryKey} = ?", 
-            [$id]
-        );
+        $stmt = $this->db->prepare("SELECT * FROM {$this->table} WHERE {$this->primaryKey} = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
     
     /**
-     * Find a record by column value
+     * Find all records
      * 
-     * @param string $column Column name
-     * @param mixed $value Column value
-     * @return array|false Record data or false if not found
-     */
-    public function findBy($column, $value) {
-        return $this->db->fetch(
-            "SELECT * FROM {$this->table} WHERE {$column} = ?", 
-            [$value]
-        );
-    }
-    
-    /**
-     * Find all records matching a condition
-     * 
-     * @param string $where WHERE clause (excluding 'WHERE')
-     * @param array $params Query parameters
-     * @param string|null $orderBy ORDER BY clause (excluding 'ORDER BY')
-     * @param int|null $limit LIMIT value
-     * @param int|null $offset OFFSET value
      * @return array List of records
      */
-    public function findAll($where = '1', $params = [], $orderBy = null, $limit = null, $offset = null) {
-        $sql = "SELECT * FROM {$this->table} WHERE {$where}";
-        
-        if ($orderBy) {
-            $sql .= " ORDER BY {$orderBy}";
-        }
-        
-        if ($limit) {
-            $sql .= " LIMIT {$limit}";
-            
-            if ($offset) {
-                $sql .= " OFFSET {$offset}";
-            }
-        }
-        
-        return $this->db->fetchAll($sql, $params);
+    public function all() {
+        $stmt = $this->db->query("SELECT * FROM {$this->table}");
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
     
     /**
@@ -80,7 +49,14 @@ abstract class Model {
      * @return int|bool New record ID or false on failure
      */
     public function create($data) {
-        return $this->db->insert($this->table, $data);
+        $fields = array_intersect_key($data, array_flip($this->fillable));
+        $columns = implode(', ', array_keys($fields));
+        $values = implode(', ', array_fill(0, count($fields), '?'));
+        
+        $stmt = $this->db->prepare("INSERT INTO {$this->table} ({$columns}) VALUES ({$values})");
+        $stmt->execute(array_values($fields));
+        
+        return $this->db->lastInsertId();
     }
     
     /**
@@ -91,12 +67,16 @@ abstract class Model {
      * @return bool Success status
      */
     public function update($id, $data) {
-        return $this->db->update(
-            $this->table, 
-            $data, 
-            "{$this->primaryKey} = ?", 
-            [$id]
-        );
+        $fields = array_intersect_key($data, array_flip($this->fillable));
+        $set = implode(', ', array_map(function($field) {
+            return "{$field} = ?";
+        }, array_keys($fields)));
+        
+        $stmt = $this->db->prepare("UPDATE {$this->table} SET {$set} WHERE {$this->primaryKey} = ?");
+        $values = array_values($fields);
+        $values[] = $id;
+        
+        return $stmt->execute($values);
     }
     
     /**
@@ -106,16 +86,14 @@ abstract class Model {
      * @return bool Success status
      */
     public function delete($id) {
-        return $this->db->delete(
-            $this->table, 
-            "{$this->primaryKey} = ?", 
-            [$id]
-        );
+        $stmt = $this->db->prepare("DELETE FROM {$this->table} WHERE {$this->primaryKey} = ?");
+        return $stmt->execute([$id]);
     }
     
     /**
-     * Count records matching a condition
+     * Find a record by column value
      * 
+     * @param string $column Column name
      * @param string $where WHERE clause (excluding 'WHERE')
      * @param array $params Query parameters
      * @return int Record count
