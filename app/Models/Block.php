@@ -121,4 +121,19 @@ class Block extends Model {
         $stmt = $this->db->prepare($sql);
         return $stmt->execute();
     }
+
+    /**
+     * Get recently unblocked users
+     * @return array List of recently unblocked users
+     */
+    public function getRecentlyUnblockedUsers() {
+        $sql = "SELECT DISTINCT blocked_id 
+                FROM blocks 
+                WHERE expires_at < NOW() 
+                AND expires_at > DATE_SUB(NOW(), INTERVAL 1 DAY)";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
 } 

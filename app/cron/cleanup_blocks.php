@@ -11,13 +11,7 @@ $userModel = new User();
 $blockModel->cleanupExpiredBlocks();
 
 // Get users who were recently unblocked
-$sql = "SELECT DISTINCT blocked_id 
-        FROM blocks 
-        WHERE expires_at < NOW() 
-        AND expires_at > DATE_SUB(NOW(), INTERVAL 1 DAY)";
-$stmt = $blockModel->db->prepare($sql);
-$stmt->execute();
-$unblockedUsers = $stmt->fetchAll();
+$unblockedUsers = $blockModel->getRecentlyUnblockedUsers();
 
 // Send notifications to unblocked users
 foreach ($unblockedUsers as $user) {

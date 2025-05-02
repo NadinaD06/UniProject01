@@ -57,7 +57,17 @@
 </div>
 
 <script>
+let reportAttempts = 0;
+const MAX_ATTEMPTS = 5;
+const WINDOW_TIME = 3600; // 1 hour in seconds
+
 function submitReport(userId) {
+    // Check rate limit
+    if (reportAttempts >= MAX_ATTEMPTS) {
+        alert('You have reached the maximum number of reports allowed. Please try again later.');
+        return;
+    }
+
     const form = document.getElementById(`reportForm${userId}`);
     const reason = document.getElementById(`reportReason${userId}`).value;
     const details = document.getElementById(`reportDetails${userId}`).value;
@@ -82,6 +92,13 @@ function submitReport(userId) {
     .then(response => response.json())
     .then(data => {
         if (data.message) {
+            // Increment report attempts
+            reportAttempts++;
+            
+            // Store attempts in localStorage with expiration
+            localStorage.setItem('reportAttempts', reportAttempts);
+            localStorage.setItem('reportAttemptsExpiry', Date.now() + (WINDOW_TIME * 1000));
+            
             // Close modal
             $(`#reportModal${userId}`).modal('hide');
             
@@ -105,4 +122,16 @@ function submitReport(userId) {
         alert('An error occurred while submitting the report');
     });
 }
+
+// Check for expired rate limit on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const expiry = localStorage.getItem('reportAttemptsExpiry');
+    if (expiry && Date.now() > parseInt(expiry)) {
+        localStorage.removeItem('reportAttempts');
+        localStorage.removeItem('reportAttemptsExpiry');
+        reportAttempts = 0;
+    } else {
+        reportAttempts = parseInt(localStorage.getItem('reportAttempts')) || 0;
+    }
+});
 </script> 
