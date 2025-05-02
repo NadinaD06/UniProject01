@@ -25,13 +25,23 @@ error_log("CONFIG_PATH: " . CONFIG_PATH);
 // Autoload classes
 spl_autoload_register(function ($class) {
     // Convert namespace to full file path
-    $file = ROOT_PATH . '/' . str_replace('\\', '/', $class) . '.php';
-    error_log("Attempting to load class: " . $class . " from file: " . $file);
-    if (file_exists($file)) {
-        require $file;
+    $file = str_replace('\\', '/', $class) . '.php';
+    
+    // Check in app directory first
+    $appFile = ROOT_PATH . '/app/' . $file;
+    if (file_exists($appFile)) {
+        require $appFile;
         return true;
     }
-    error_log("Class file not found: " . $file);
+    
+    // Check in root directory
+    $rootFile = ROOT_PATH . '/' . $file;
+    if (file_exists($rootFile)) {
+        require $rootFile;
+        return true;
+    }
+    
+    error_log("Class file not found: " . $class . " (tried: " . $appFile . " and " . $rootFile . ")");
     return false;
 });
 

@@ -28,7 +28,13 @@ set_error_handler(function($errno, $errstr, $errfile, $errline) {
 set_exception_handler(function($e) {
     error_log($e->getMessage());
     header('HTTP/1.1 500 Internal Server Error');
-    echo 'An error occurred. Please try again later.';
+    echo '<h1>Error Details:</h1>';
+    echo '<pre>';
+    echo 'Message: ' . htmlspecialchars($e->getMessage()) . "\n";
+    echo 'File: ' . htmlspecialchars($e->getFile()) . "\n";
+    echo 'Line: ' . $e->getLine() . "\n";
+    echo 'Trace: ' . htmlspecialchars($e->getTraceAsString());
+    echo '</pre>';
     exit;
 });
 
@@ -52,9 +58,15 @@ try {
     error_log("Error in index.php: " . $e->getMessage());
     error_log("Stack trace: " . $e->getTraceAsString());
     
-    // Show a user-friendly error message
+    // Show detailed error message
     header('HTTP/1.1 500 Internal Server Error');
-    echo 'An error occurred. Please try again later.';
+    echo '<h1>Error Details:</h1>';
+    echo '<pre>';
+    echo 'Message: ' . htmlspecialchars($e->getMessage()) . "\n";
+    echo 'File: ' . htmlspecialchars($e->getFile()) . "\n";
+    echo 'Line: ' . $e->getLine() . "\n";
+    echo 'Trace: ' . htmlspecialchars($e->getTraceAsString());
+    echo '</pre>';
     exit;
 }
 
