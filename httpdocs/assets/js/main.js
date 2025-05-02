@@ -157,4 +157,133 @@ function loadMessages(userId) {
             
             messageList.scrollTop = messageList.scrollHeight;
         });
-} 
+}
+
+// Main JavaScript file
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Initialize Bootstrap popovers
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl);
+    });
+});
+
+// Flash message handling
+function showFlashMessage(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.role = 'alert';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    const container = document.querySelector('.container');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        alertDiv.classList.remove('show');
+        setTimeout(() => alertDiv.remove(), 150);
+    }, 5000);
+}
+
+// CSRF token handling for AJAX requests
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+}
+
+// Add CSRF token to all AJAX requests
+$.ajaxSetup({
+    headers: {
+        'X-CSRF-TOKEN': getCsrfToken()
+    }
+});
+
+// Handle AJAX errors
+$(document).ajaxError(function(event, jqXHR, settings, error) {
+    console.error('AJAX Error:', error);
+    showFlashMessage('An error occurred. Please try again.', 'danger');
+});
+
+// Form validation
+function validateForm(form) {
+    let isValid = true;
+    const requiredFields = form.querySelectorAll('[required]');
+    
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            isValid = false;
+            field.classList.add('is-invalid');
+            
+            // Add error message if it doesn't exist
+            if (!field.nextElementSibling?.classList.contains('invalid-feedback')) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'invalid-feedback';
+                errorDiv.textContent = 'This field is required';
+                field.parentNode.insertBefore(errorDiv, field.nextSibling);
+            }
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    });
+    
+    return isValid;
+}
+
+// Add form validation to all forms
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        if (!validateForm(this)) {
+            e.preventDefault();
+        }
+    });
+});
+
+// Clear form validation on input
+document.querySelectorAll('input, textarea').forEach(field => {
+    field.addEventListener('input', function() {
+        this.classList.remove('is-invalid');
+    });
+});
+
+// Handle file input preview
+document.querySelectorAll('input[type="file"]').forEach(input => {
+    input.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = input.parentNode.querySelector('.image-preview');
+                if (preview) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+});
+
+// Handle infinite scroll
+let isLoading = false;
+window.addEventListener('scroll', function() {
+    if (isLoading) return;
+    
+    const loadMoreButton = document.querySelector('.load-more');
+    if (!loadMoreButton) return;
+    
+    const rect = loadMoreButton.getBoundingClientRect();
+    if (rect.top <= window.innerHeight + 100) {
+        isLoading = true;
+        loadMoreButton.click();
+    }
+}); 

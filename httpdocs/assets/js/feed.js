@@ -348,4 +348,189 @@ function showAlert(message, type = 'info') {
     setTimeout(() => {
         $('.alert').alert('close');
     }, 5000);
-} 
+}
+
+// Feed-specific JavaScript
+
+// Initialize map for new post
+let map = null;
+let marker = null;
+
+function initMap() {
+    if (!document.getElementById('map')) return;
+    
+    map = L.map('map').setView([51.505, -0.09], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    map.on('click', function(e) {
+        if (marker) {
+            map.removeLayer(marker);
+        }
+        marker = L.marker(e.latlng).addTo(map);
+        document.getElementById('location_lat').value = e.latlng.lat;
+        document.getElementById('location_lng').value = e.latlng.lng;
+    });
+}
+
+// Initialize maps for existing posts
+function initPostMaps() {
+    document.querySelectorAll('.post-map').forEach(function(element) {
+        const lat = parseFloat(element.dataset.lat);
+        const lng = parseFloat(element.dataset.lng);
+        const postMap = L.map(element).setView([lat, lng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(postMap);
+        L.marker([lat, lng]).addTo(postMap);
+    });
+}
+
+// Like/Unlike post
+function handleLike(button) {
+    const postId = button.dataset.postId;
+    
+    $.post(`/posts/like/${postId}`, function(response) {
+        if (response.success) {
+            const count = parseInt(button.querySelector('.like-count').textContent);
+            button.classList.toggle('liked');
+            button.querySelector('.like-count').textContent = 
+                button.classList.contains('liked') ? count + 1 : count - 1;
+        }
+    });
+}
+
+// Load comments
+function loadComments(postId) {
+    const container = document.getElementById(`comments-${postId}`);
+    if (!container || container.children.length > 0) return;
+    
+    $.get(`/posts/comments/${postId}`, function(response) {
+        if (response.success) {
+            response.comments.forEach(function(comment) {
+                container.appendChild(createCommentElement(comment));
+            });
+        }
+    });
+}
+
+// Create comment element
+function createCommentElement(comment) {
+    const div = document.createElement('div');
+    div.className = 'comment mb-2';
+    div.innerHTML = `
+        <div class="d-flex">
+            <img src="${comment.profile_image || '/assets/images/default-avatar.png'}" 
+                 alt="Profile" 
+                 class="rounded-circle me-2"
+                 width="32" 
+                 height="32">
+            <div class="flex-grow-1">
+                <div class="bg-light rounded p-2">
+                    <strong>${comment.username}</strong>
+                    <p class="mb-0">${comment.content}</p>
+                </div>
+                <small class="text-muted">${new Date(comment.created_at).toLocaleString()}</small>
+            </div>
+        </div>
+    `;
+    return div;
+}
+
+// Add comment
+function handleComment(form) {
+    const postId = form.dataset.postId;
+    const input = form.querySelector('input');
+    const content = input.value;
+    
+    $.post(`/posts/comment/${postId}`, { content: content }, function(response) {
+        if (response.success) {
+            const container = document.getElementById(`comments-${postId}`);
+            container.appendChild(createCommentElement(response.comment));
+            input.value = '';
+            
+            const count = parseInt(form.closest('.post').querySelector('.comment-count').textContent);
+            form.closest('.post').querySelector('.comment-count').textContent = count + 1;
+        }
+    });
+}
+
+// Delete post
+function handleDelete(button) {
+    const postId = button.dataset.postId;
+    
+    if (confirm('Are you sure you want to delete this post?')) {
+        $.post(`/posts/delete/${postId}`, function(response) {
+            if (response.success) {
+                button.closest('.post').remove();
+            }
+        });
+    }
+}
+
+// Load more posts
+function loadMore(page) {
+    $.get('/posts/load-more', { page: page }, function(response) {
+        if (response.success) {
+            const postsContainer = document.getElementById('posts');
+            response.posts.forEach(function(post) {
+                // Add new posts to the feed
+                // This is a simplified version - you'll need to implement the full post HTML structure
+                const postElement = document.createElement('div');
+                postElement.className = 'card mb-4 post';
+                postElement.dataset.postId = post.id;
+                postElement.innerHTML = `
+                    <div class="card-body">
+                        <!-- Post content -->
+                    </div>
+                `;
+                postsContainer.appendChild(postElement);
+            });
+            
+            if (response.hasMore) {
+                const loadMoreButton = document.querySelector('.load-more');
+                loadMoreButton.dataset.page = page + 1;
+            } else {
+                document.querySelector('.load-more').remove();
+            }
+        }
+    });
+}
+
+// Initialize everything when the DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize maps
+    initMap();
+    initPostMaps();
+    
+    // Add event listeners
+    document.querySelectorAll('.like-button').forEach(button => {
+        button.addEventListener('click', () => handleLike(button));
+    });
+    
+    document.querySelectorAll('.comment-button').forEach(button => {
+        button.addEventListener('click', () => {
+            const postId = button.dataset.postId;
+            const container = document.getElementById(`comments-${postId}`);
+            loadComments(postId);
+            container.style.display = container.style.display === 'none' ? 'block' : 'none';
+        });
+    });
+    
+    document.querySelectorAll('.comment-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleComment(this);
+        });
+    });
+    
+    document.querySelectorAll('.delete-post').forEach(button => {
+        button.addEventListener('click', () => handleDelete(button));
+    });
+    
+    document.querySelector('.load-more')?.addEventListener('click', function() {
+        const page = parseInt(this.dataset.page);
+        loadMore(page);
+    });
+}); 

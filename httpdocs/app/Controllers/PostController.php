@@ -47,7 +47,7 @@ class PostController extends Controller {
         
         $posts = $this->postModel->getFeed($userId, $limit, $offset);
         
-        $this->render('posts/index', [
+        return $this->view('posts/index', [
             'posts' => $posts,
             'page' => $page,
             'hasMore' => count($posts) === $limit

@@ -1,0 +1,170 @@
+/* Feed-specific styles */
+
+/* Post card */
+.post {
+    transition: transform 0.2s;
+}
+
+.post:hover {
+    transform: translateY(-2px);
+}
+
+/* Post header */
+.post .card-body > div:first-child {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.post .card-body > div:first-child img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.post .card-body > div:first-child h6 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.post .card-body > div:first-child small {
+    color: var(--secondary-color);
+}
+
+/* Post content */
+.post .card-text {
+    margin-bottom: 1rem;
+    white-space: pre-wrap;
+}
+
+/* Post image */
+.post img.img-fluid {
+    max-height: 500px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* Post map */
+.post-map {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Post actions */
+.post .d-flex.align-items-center {
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+    margin-top: 1rem;
+}
+
+.post .btn-link {
+    color: var(--secondary-color);
+    text-decoration: none;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.post .btn-link:hover {
+    background-color: var(--light-color);
+}
+
+.post .btn-link.liked {
+    color: var(--danger-color);
+}
+
+.post .btn-link i {
+    margin-right: 0.5rem;
+}
+
+/* Comments section */
+.comments-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.comment {
+    margin-bottom: 1rem;
+}
+
+.comment img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.comment .bg-light {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+}
+
+.comment strong {
+    font-weight: 600;
+}
+
+.comment p {
+    margin: 0.25rem 0;
+}
+
+.comment small {
+    color: var(--secondary-color);
+}
+
+/* Comment form */
+.comment-form {
+    margin-top: 1rem;
+}
+
+.comment-form .input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.comment-form .form-control {
+    flex: 1;
+}
+
+/* Load more button */
+.load-more {
+    margin: 2rem auto;
+    display: block;
+}
+
+/* Create post form */
+.card:first-child {
+    margin-bottom: 2rem;
+}
+
+.card:first-child textarea {
+    resize: none;
+}
+
+.card:first-child .btn-primary {
+    min-width: 100px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .post .card-body > div:first-child {
+        flex-wrap: wrap;
+    }
+    
+    .post .card-body > div:first-child .ms-auto {
+        margin-left: 0 !important;
+        margin-top: 0.5rem;
+        width: 100%;
+        text-align: right;
+    }
+    
+    .comment-form .input-group {
+        flex-direction: column;
+    }
+    
+    .comment-form .btn {
+        width: 100%;
+    }
+} 
