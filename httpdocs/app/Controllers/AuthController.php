@@ -29,7 +29,7 @@ class AuthController extends Controller {
             return $this->redirect('/feed');
         }
         
-        return $this->view('auth/login', [
+        return $this->render('auth/login', [
             'csrf_token' => $this->authService->generateCsrfToken()
         ]);
     }
@@ -73,7 +73,7 @@ class AuthController extends Controller {
             return $this->redirect('/feed');
         }
         
-        return $this->view('auth/register', [
+        return $this->render('auth/register', [
             'csrf_token' => $this->authService->generateCsrfToken()
         ]);
     }
@@ -157,7 +157,7 @@ class AuthController extends Controller {
             return $this->redirect('/feed');
         }
         
-        return $this->view('auth/forgot-password', [
+        return $this->render('auth/forgot-password', [
             'csrf_token' => $this->authService->generateCsrfToken()
         ]);
     }
