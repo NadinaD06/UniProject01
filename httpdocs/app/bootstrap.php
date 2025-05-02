@@ -102,6 +102,17 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
+    // Check for base Controller class
+    if ($class === 'App\\Controllers\\Controller') {
+        $baseControllerFile = APP_PATH . '/Controllers/Controller.php';
+        error_log("Checking base controller file: " . $baseControllerFile);
+        if (file_exists($baseControllerFile)) {
+            error_log("Found base controller file: " . $baseControllerFile);
+            require $baseControllerFile;
+            return true;
+        }
+    }
+    
     error_log("Class file not found: " . $class . " (tried: " . $appFile . ", " . $coreFile . ", " . $controllerFile . ", " . $modelFile . ", " . $serviceFile . ", " . $coreControllerFile . ", and " . $coreModelFile . ")");
     return false;
 });
