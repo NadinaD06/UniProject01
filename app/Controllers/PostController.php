@@ -1,134 +1,310 @@
 <?php
-class PostController {
-    private $pdo;
+/**
+ * PostController
+ * Handles post-related actions
+ */
+class PostController extends Controller {
+    private $postModel;
+    private $userModel;
 
-    public function __construct($pdo) {
-        $this->pdo = $pdo;
+    /**
+     * Constructor
+     */
+    public function __construct() {
+        parent::__construct();
+        $this->postModel = new Post();
+        $this->userModel = new User();
     }
 
+    /**
+     * Show feed page
+     */
     public function index() {
-        // Get all posts with user information
-        $stmt = $this->pdo->query("
-            SELECT p.*, u.username, u.avatar as user_avatar,
-                   (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes,
-                   (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments
-            FROM posts p
-            JOIN users u ON p.user_id = u.id
-            ORDER BY p.created_at DESC
-        ");
-        $posts = $stmt->fetchAll();
+        $this->requireLogin();
 
-        // Get trending topics
-        $stmt = $this->pdo->query("
-            SELECT name, COUNT(*) as count
-            FROM posts
-            WHERE created_at > NOW() - INTERVAL '7 days'
-            GROUP BY name
-            ORDER BY count DESC
-            LIMIT 5
-        ");
-        $trendingTopics = $stmt->fetchAll();
+        $page = (int) $this->get('page', 1);
+        $perPage = $this->config['pagination']['posts_per_page'];
+        $userId = $this->getCurrentUserId();
 
-        // Get suggested users
-        $stmt = $this->pdo->query("
-            SELECT id, username, avatar
-            FROM users
-            WHERE id != ?
-            ORDER BY RANDOM()
-            LIMIT 5
-        ");
-        $stmt->execute([$_SESSION['user_id']]);
-        $suggestedUsers = $stmt->fetchAll();
+        // Get posts for feed
+        $posts = $this->postModel->getFeed($userId, $page, $perPage);
 
-        require_once __DIR__ . '/../Views/feed/index.php';
+        $this->render('posts/index', [
+            'posts' => $posts,
+            'user' => $this->userModel->find($userId)
+        ]);
     }
 
+    /**
+     * Show create post form
+     */
     public function create() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $title = $_POST['title'] ?? '';
-            $content = $_POST['content'] ?? '';
+        $this->requireLogin();
+        $this->render('posts/create');
+    }
 
-            if (empty($title) || empty($content)) {
-                $error = "Title and content are required";
-            } else {
-                $stmt = $this->pdo->prepare("
-                    INSERT INTO posts (user_id, title, content)
-                    VALUES (?, ?, ?)
-                ");
-                $stmt->execute([$_SESSION['user_id'], $title, $content]);
-                header('Location: /feed');
-                exit;
-            }
+    /**
+     * Handle post creation
+     */
+    public function store() {
+        $this->requireLogin();
+
+        if (!$this->post()) {
+            $this->redirect('/posts/create.php');
+        }
+
+        $content = $this->post('content');
+        $locationName = $this->post('location_name');
+        $latitude = $this->post('latitude');
+        $longitude = $this->post('longitude');
+        $file = $this->files('image');
+
+        // Validate input
+        $errors = $this->validate(
+            ['content' => $content],
+            ['content' => 'required|max:1000']
+        );
+
+        if (!empty($errors)) {
+            $this->setFlash('error', 'Please correct the errors in the form.');
+            $_SESSION['errors'] = $errors;
+            $_SESSION['old'] = $this->post();
+            $this->redirect('/posts/create.php');
+        }
+
+        try {
+            // Create post
+            $postId = $this->postModel->createPost([
+                'user_id' => $this->getCurrentUserId(),
+                'content' => $content,
+                'location_name' => $locationName,
+                'latitude' => $latitude,
+                'longitude' => $longitude
+            ], $file);
+
+            $this->setFlash('success', 'Post created successfully!');
+            $this->redirect('/index.php');
+        } catch (Exception $e) {
+            $this->setFlash('error', 'An error occurred while creating the post.');
+            $this->redirect('/posts/create.php');
         }
     }
 
+    /**
+     * Show single post
+     */
+    public function show() {
+        $this->requireLogin();
+
+        $postId = (int) $this->get('id');
+        if (!$postId) {
+            $this->redirect('/index.php');
+        }
+
+        // Get post with user details
+        $post = $this->postModel->getWithUser($postId);
+        if (!$post) {
+            $this->setFlash('error', 'Post not found.');
+            $this->redirect('/index.php');
+        }
+
+        // Get comments
+        $page = (int) $this->get('page', 1);
+        $perPage = $this->config['pagination']['comments_per_page'];
+        $comments = $this->postModel->getComments($postId, $page, $perPage);
+
+        $this->render('posts/show', [
+            'post' => $post,
+            'comments' => $comments
+        ]);
+    }
+
+    /**
+     * Handle post like/unlike
+     */
     public function like() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $post_id = $_POST['post_id'] ?? 0;
+        $this->requireLogin();
 
-            // Check if already liked
-            $stmt = $this->pdo->prepare("
-                SELECT COUNT(*) FROM likes
-                WHERE post_id = ? AND user_id = ?
-            ");
-            $stmt->execute([$post_id, $_SESSION['user_id']]);
-            $alreadyLiked = $stmt->fetchColumn() > 0;
+        if (!$this->post()) {
+            $this->json(['error' => 'Invalid request.'], 400);
+        }
 
-            if ($alreadyLiked) {
-                // Unlike
-                $stmt = $this->pdo->prepare("
-                    DELETE FROM likes
-                    WHERE post_id = ? AND user_id = ?
-                ");
-                $stmt->execute([$post_id, $_SESSION['user_id']]);
-            } else {
-                // Like
-                $stmt = $this->pdo->prepare("
-                    INSERT INTO likes (post_id, user_id)
-                    VALUES (?, ?)
-                ");
-                $stmt->execute([$post_id, $_SESSION['user_id']]);
+        $postId = (int) $this->post('post_id');
+        if (!$postId) {
+            $this->json(['error' => 'Invalid post ID.'], 400);
+        }
+
+        try {
+            $userId = $this->getCurrentUserId();
+            $success = $this->postModel->like($postId, $userId);
+
+            if ($success) {
+                // Create notification for post owner
+                $post = $this->postModel->find($postId);
+                if ($post && $post['user_id'] !== $userId) {
+                    $notificationModel = new Notification();
+                    $notificationModel->create([
+                        'user_id' => $post['user_id'],
+                        'actor_id' => $userId,
+                        'type' => 'like',
+                        'reference_id' => $postId,
+                        'is_read' => 0
+                    ]);
+                }
             }
 
-            // Get updated like count
-            $stmt = $this->pdo->prepare("
-                SELECT COUNT(*) FROM likes
-                WHERE post_id = ?
-            ");
-            $stmt->execute([$post_id]);
-            $likeCount = $stmt->fetchColumn();
-
-            echo json_encode(['success' => true, 'likes' => $likeCount]);
-            exit;
+            $this->json(['success' => true]);
+        } catch (Exception $e) {
+            $this->json(['error' => 'An error occurred.'], 500);
         }
     }
 
-    public function comment() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $post_id = $_POST['post_id'] ?? 0;
-            $content = $_POST['content'] ?? '';
+    /**
+     * Handle post unlike
+     */
+    public function unlike() {
+        $this->requireLogin();
 
-            if (empty($content)) {
-                echo json_encode(['success' => false, 'message' => 'Comment cannot be empty']);
-                exit;
+        if (!$this->post()) {
+            $this->json(['error' => 'Invalid request.'], 400);
+        }
+
+        $postId = (int) $this->post('post_id');
+        if (!$postId) {
+            $this->json(['error' => 'Invalid post ID.'], 400);
+        }
+
+        try {
+            $success = $this->postModel->unlike($postId, $this->getCurrentUserId());
+            $this->json(['success' => $success]);
+        } catch (Exception $e) {
+            $this->json(['error' => 'An error occurred.'], 500);
+        }
+    }
+
+    /**
+     * Handle comment creation
+     */
+    public function comment() {
+        $this->requireLogin();
+
+        if (!$this->post()) {
+            $this->json(['error' => 'Invalid request.'], 400);
+        }
+
+        $postId = (int) $this->post('post_id');
+        $content = $this->post('content');
+
+        // Validate input
+        $errors = $this->validate(
+            ['content' => $content],
+            ['content' => 'required|max:500']
+        );
+
+        if (!empty($errors)) {
+            $this->json(['error' => 'Please enter a valid comment.'], 400);
+        }
+
+        try {
+            $userId = $this->getCurrentUserId();
+            $commentId = $this->postModel->addComment($postId, $userId, $content);
+
+            // Create notification for post owner
+            $post = $this->postModel->find($postId);
+            if ($post && $post['user_id'] !== $userId) {
+                $notificationModel = new Notification();
+                $notificationModel->create([
+                    'user_id' => $post['user_id'],
+                    'actor_id' => $userId,
+                    'type' => 'comment',
+                    'reference_id' => $postId,
+                    'is_read' => 0
+                ]);
             }
 
-            $stmt = $this->pdo->prepare("
-                INSERT INTO comments (post_id, user_id, content)
-                VALUES (?, ?, ?)
-            ");
-            $stmt->execute([$post_id, $_SESSION['user_id'], $content]);
+            $this->json([
+                'success' => true,
+                'comment' => [
+                    'id' => $commentId,
+                    'content' => $content,
+                    'username' => $_SESSION['username'],
+                    'created_at' => date('Y-m-d H:i:s')
+                ]
+            ]);
+        } catch (Exception $e) {
+            $this->json(['error' => 'An error occurred.'], 500);
+        }
+    }
 
-            // Get updated comment count
-            $stmt = $this->pdo->prepare("
-                SELECT COUNT(*) FROM comments
-                WHERE post_id = ?
-            ");
-            $stmt->execute([$post_id]);
-            $commentCount = $stmt->fetchColumn();
+    /**
+     * Get posts by location
+     */
+    public function getByLocation() {
+        $this->requireLogin();
 
-            echo json_encode(['success' => true, 'comments' => $commentCount]);
-            exit;
+        $lat = (float) $this->get('lat');
+        $lng = (float) $this->get('lng');
+        $radius = (float) $this->get('radius', 10); // Default 10km radius
+        $page = (int) $this->get('page', 1);
+        $perPage = $this->config['pagination']['posts_per_page'];
+
+        if (!$lat || !$lng) {
+            $this->json(['error' => 'Invalid coordinates.'], 400);
+        }
+
+        try {
+            $posts = $this->postModel->getByLocation($lat, $lng, $radius, $page, $perPage);
+            $this->json($posts);
+        } catch (Exception $e) {
+            $this->json(['error' => 'An error occurred.'], 500);
+        }
+    }
+
+    /**
+     * Delete post
+     */
+    public function delete() {
+        $this->requireLogin();
+
+        $postId = (int) $this->post('post_id');
+        if (!$postId) {
+            $this->json(['error' => 'Invalid post ID.'], 400);
+        }
+
+        // Check if user owns the post or is admin
+        $post = $this->postModel->find($postId);
+        if (!$post) {
+            $this->json(['error' => 'Post not found.'], 404);
+        }
+
+        if ($post['user_id'] !== $this->getCurrentUserId() && !$this->isAdmin()) {
+            $this->json(['error' => 'Unauthorized.'], 403);
+        }
+
+        try {
+            $this->postModel->delete($postId);
+            $this->json(['success' => true]);
+        } catch (Exception $e) {
+            $this->json(['error' => 'An error occurred.'], 500);
+        }
+    }
+
+    /**
+     * Get post statistics (admin only)
+     */
+    public function getStats() {
+        $this->requireAdmin();
+
+        $period = $this->get('period', 'week');
+        if (!in_array($period, ['week', 'month', 'year'])) {
+            $this->json(['error' => 'Invalid period.'], 400);
+        }
+
+        try {
+            $stats = $this->postModel->getStats($period);
+            $this->json($stats);
+        } catch (Exception $e) {
+            $this->json(['error' => 'An error occurred.'], 500);
         }
     }
 } 

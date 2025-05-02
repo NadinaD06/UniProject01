@@ -1,108 +1,199 @@
 <?php
 namespace App\Models;
 
-class User {
-    private $pdo;
-    
-    public function __construct($pdo) {
-        $this->pdo = $pdo;
-    }
-    
+/**
+ * User Model
+ * Handles user-related database operations
+ */
+class User extends Model {
+    protected $table = 'users';
+    protected $fillable = [
+        'username',
+        'email',
+        'password',
+        'role',
+        'is_blocked',
+        'block_until',
+        'last_login'
+    ];
+    protected $hidden = ['password'];
+
+    /**
+     * Find user by username
+     * @param string $username Username
+     * @return array|false
+     */
     public function findByUsername($username) {
-        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE username = ?");
-        $stmt->execute([$username]);
-        return $stmt->fetch();
+        return $this->db->fetch(
+            "SELECT * FROM {$this->table} WHERE username = ?",
+            [$username]
+        );
     }
-    
+
+    /**
+     * Find user by email
+     * @param string $email Email address
+     * @return array|false
+     */
     public function findByEmail($email) {
-        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        return $stmt->fetch();
+        return $this->db->fetch(
+            "SELECT * FROM {$this->table} WHERE email = ?",
+            [$email]
+        );
     }
-    
-    public function create($data) {
-        $stmt = $this->pdo->prepare("
-            INSERT INTO users (username, email, password_hash, age, bio, interests)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ");
+
+    /**
+     * Check if username exists
+     * @param string $username Username to check
+     * @return bool
+     */
+    public function usernameExists($username) {
+        return (bool) $this->db->fetch(
+            "SELECT 1 FROM {$this->table} WHERE username = ?",
+            [$username]
+        );
+    }
+
+    /**
+     * Check if email exists
+     * @param string $email Email to check
+     * @return bool
+     */
+    public function emailExists($email) {
+        return (bool) $this->db->fetch(
+            "SELECT 1 FROM {$this->table} WHERE email = ?",
+            [$email]
+        );
+    }
+
+    /**
+     * Create new user
+     * @param array $data User data
+     * @return int User ID
+     */
+    public function createUser($data) {
+        // Hash password
+        $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
         
-        return $stmt->execute([
-            $data['username'],
-            $data['email'],
-            $data['password_hash'],
-            $data['age'] ?? null,
-            $data['bio'] ?? null,
-            $data['interests'] ?? null
+        // Set default role if not provided
+        if (!isset($data['role'])) {
+            $data['role'] = 'user';
+        }
+
+        return $this->create($data);
+    }
+
+    /**
+     * Update user password
+     * @param int $userId User ID
+     * @param string $password New password
+     * @return int Number of affected rows
+     */
+    public function updatePassword($userId, $password) {
+        return $this->update($userId, [
+            'password' => password_hash($password, PASSWORD_DEFAULT)
         ]);
     }
-    
-    public function findById($id) {
-        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE id = ?");
-        $stmt->execute([$id]);
-        return $stmt->fetch();
+
+    /**
+     * Block user
+     * @param int $userId User ID
+     * @param int $duration Block duration in seconds
+     * @return int Number of affected rows
+     */
+    public function blockUser($userId, $duration) {
+        return $this->update($userId, [
+            'is_blocked' => 1,
+            'block_until' => date('Y-m-d H:i:s', time() + $duration)
+        ]);
     }
-    
-    public function update($id, $data) {
-        $fields = [];
-        $values = [];
-        
-        foreach ($data as $key => $value) {
-            if ($key !== 'id' && $key !== 'password_hash') {
-                $fields[] = "$key = ?";
-                $values[] = $value;
-            }
-        }
-        
-        if (isset($data['password_hash'])) {
-            $fields[] = "password_hash = ?";
-            $values[] = $data['password_hash'];
-        }
-        
-        $values[] = $id;
-        
-        $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?";
-        $stmt = $this->pdo->prepare($sql);
-        
-        return $stmt->execute($values);
+
+    /**
+     * Unblock user
+     * @param int $userId User ID
+     * @return int Number of affected rows
+     */
+    public function unblockUser($userId) {
+        return $this->update($userId, [
+            'is_blocked' => 0,
+            'block_until' => null
+        ]);
     }
-    
-    public function createPasswordResetToken($email) {
-        $token = bin2hex(random_bytes(32));
-        $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
-        
-        $stmt = $this->pdo->prepare("
-            UPDATE users 
-            SET reset_token = ?, reset_token_expires = ? 
-            WHERE email = ?
-        ");
-        
-        return $stmt->execute([$token, $expires, $email]) ? $token : false;
-    }
-    
-    public function validatePasswordResetToken($token) {
-        $stmt = $this->pdo->prepare("
-            SELECT * FROM users 
-            WHERE reset_token = ? 
-            AND reset_token_expires > NOW()
-        ");
-        $stmt->execute([$token]);
-        return $stmt->fetch();
-    }
-    
-    public function resetPassword($token, $newPassword) {
-        $user = $this->validatePasswordResetToken($token);
-        if (!$user) {
+
+    /**
+     * Check if user is blocked
+     * @param int $userId User ID
+     * @return bool
+     */
+    public function isBlocked($userId) {
+        $user = $this->find($userId);
+        if (!$user) return false;
+
+        if (!$user['is_blocked']) return false;
+
+        // Check if block period has expired
+        if ($user['block_until'] && strtotime($user['block_until']) < time()) {
+            $this->unblockUser($userId);
             return false;
         }
-        
-        $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
-        
-        $stmt = $this->pdo->prepare("
-            UPDATE users 
-            SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL 
-            WHERE id = ?
-        ");
-        
-        return $stmt->execute([$passwordHash, $user['id']]);
+
+        return true;
+    }
+
+    /**
+     * Update last login time
+     * @param int $userId User ID
+     * @return int Number of affected rows
+     */
+    public function updateLastLogin($userId) {
+        return $this->update($userId, [
+            'last_login' => date('Y-m-d H:i:s')
+        ]);
+    }
+
+    /**
+     * Get user's posts
+     * @param int $userId User ID
+     * @param int $page Page number
+     * @param int $perPage Posts per page
+     * @return array
+     */
+    public function getPosts($userId, $page = 1, $perPage = 10) {
+        $postModel = new Post();
+        return $postModel->paginate($page, $perPage, ['user_id = ?'], [$userId]);
+    }
+
+    /**
+     * Get user's messages
+     * @param int $userId User ID
+     * @param int $page Page number
+     * @param int $perPage Messages per page
+     * @return array
+     */
+    public function getMessages($userId, $page = 1, $perPage = 50) {
+        $messageModel = new Message();
+        return $messageModel->getUserMessages($userId, $page, $perPage);
+    }
+
+    /**
+     * Get user's notifications
+     * @param int $userId User ID
+     * @param int $page Page number
+     * @param int $perPage Notifications per page
+     * @return array
+     */
+    public function getNotifications($userId, $page = 1, $perPage = 20) {
+        $notificationModel = new Notification();
+        return $notificationModel->getUserNotifications($userId, $page, $perPage);
+    }
+
+    /**
+     * Get unread notification count
+     * @param int $userId User ID
+     * @return int
+     */
+    public function getUnreadNotificationCount($userId) {
+        $notificationModel = new Notification();
+        return $notificationModel->getUnreadCount($userId);
     }
 } 
