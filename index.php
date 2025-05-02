@@ -155,6 +155,4 @@ switch ($path) {
         const CSRF_TOKEN = "<?php echo isset($_SESSION['csrf_token']) ? $_SESSION['csrf_token'] : ''; ?>";
     </script>
 </head>
-<body class="<?php echo $body_class
-// Initialize error handler
-$errorHandler = new \App\Core\ErrorHandler();
+<body class="<?php echo $body_class ?>">
