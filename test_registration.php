@@ -32,7 +32,7 @@ try {
     } else {
         // Attempt registration
         $stmt = $pdo->prepare("
-            INSERT INTO users (username, email, password, age, bio, interests, created_at)
+            INSERT INTO users (username, email, password_hash, age, bio, interests, created_at)
             VALUES (?, ?, ?, ?, ?, ?, NOW())
         ");
         
@@ -58,11 +58,11 @@ try {
         echo "</ul>";
         
         // Test login with the created user
-        $stmt = $pdo->prepare("SELECT id, password FROM users WHERE username = ?");
+        $stmt = $pdo->prepare("SELECT id, password_hash FROM users WHERE username = ?");
         $stmt->execute([$testUser['username']]);
         $user = $stmt->fetch();
         
-        if ($user && password_verify($testUser['password'], $user['password'])) {
+        if ($user && password_verify($testUser['password'], $user['password_hash'])) {
             echo "<p style='color: green;'>Login test successful!</p>";
         } else {
             echo "<p style='color: red;'>Login test failed!</p>";
