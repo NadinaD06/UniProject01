@@ -8,11 +8,13 @@ namespace App\Controllers;
 use App\Models\Post;
 use App\Models\Comment;
 use App\Models\Like;
+use App\Models\Notification;
 
 class PostController extends Controller {
     private $postModel;
     private $commentModel;
     private $likeModel;
+    private $notificationModel;
 
     /**
      * Constructor
@@ -22,82 +24,64 @@ class PostController extends Controller {
         $this->postModel = new Post();
         $this->commentModel = new Comment();
         $this->likeModel = new Like();
+        $this->notificationModel = new Notification();
     }
 
     /**
      * Create a new post
      */
     public function create() {
-        $this->requireLogin();
-
-        if (!$this->post()) {
-            $this->json(['error' => 'Invalid request method'], 405);
+        if (!$this->isLoggedIn()) {
+            $this->redirect('/login');
         }
 
-        $content = $this->post('content');
-        $locationLat = $this->post('location_lat');
-        $locationLng = $this->post('location_lng');
-        $locationName = $this->post('location_name');
-        $image = $this->files('image');
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $content = $_POST['content'] ?? '';
+            $locationLat = $_POST['location_lat'] ?? null;
+            $locationLng = $_POST['location_lng'] ?? null;
+            $locationName = $_POST['location_name'] ?? null;
+            $userId = $_SESSION['user_id'];
 
-        if (!$content) {
-            $this->json(['error' => 'Post content is required'], 400);
-        }
-
-        try {
-            $data = [
-                'user_id' => $this->getCurrentUserId(),
-                'content' => $content
-            ];
-
-            // Handle location if provided
-            if ($locationLat && $locationLng) {
-                $data['location_lat'] = $locationLat;
-                $data['location_lng'] = $locationLng;
-                $data['location_name'] = $locationName;
+            if (empty($content)) {
+                $this->jsonResponse(['error' => 'Post content cannot be empty'], 400);
+                return;
             }
 
-            // Handle image upload if provided
-            if ($image && $image['error'] === UPLOAD_ERR_OK) {
-                $config = require __DIR__ . '/../config/config.php';
-                $uploadDir = $config['upload']['directory'];
-                $allowedTypes = $config['upload']['allowed_types'];
-                $maxSize = $config['upload']['max_size'];
-
-                // Validate file
-                $fileInfo = finfo_open(FILEINFO_MIME_TYPE);
-                $mimeType = finfo_file($fileInfo, $image['tmp_name']);
-                $extension = strtolower(pathinfo($image['name'], PATHINFO_EXTENSION));
-
-                if ($image['size'] > $maxSize) {
-                    $this->json(['error' => 'File size exceeds limit'], 400);
+            // Handle image upload
+            $imagePath = null;
+            if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = 'public/uploads/posts/';
+                if (!file_exists($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
                 }
 
-                if (!in_array($extension, $allowedTypes)) {
-                    $this->json(['error' => 'Invalid file type'], 400);
+                $fileType = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+                if (!in_array($fileType, ['jpg', 'jpeg', 'png', 'gif'])) {
+                    $this->jsonResponse(['error' => 'Only JPG, JPEG, PNG & GIF files are allowed'], 400);
+                    return;
                 }
 
-                // Generate unique filename
-                $filename = uniqid() . '.' . $extension;
-                $filepath = $uploadDir . $filename;
+                $fileName = uniqid() . '.' . $fileType;
+                $targetPath = $uploadDir . $fileName;
 
-                // Move uploaded file
-                if (!move_uploaded_file($image['tmp_name'], $filepath)) {
-                    $this->json(['error' => 'Failed to move uploaded file'], 500);
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
+                    $imagePath = $targetPath;
                 }
-
-                $data['image_path'] = $filename;
             }
 
-            $postId = $this->postModel->createPost($data);
+            $postId = $this->postModel->createPost($userId, $content, $imagePath, [
+                'latitude' => $locationLat,
+                'longitude' => $locationLng,
+                'name' => $locationName
+            ]);
+
             if ($postId) {
-                $post = $this->postModel->getPost($postId, $this->getCurrentUserId());
-                $this->json(['success' => true, 'post' => $post]);
+                $this->jsonResponse(['message' => 'Post created successfully', 'post_id' => $postId]);
             } else {
-                $this->json(['error' => 'Failed to create post'], 500);
+                $this->jsonResponse(['error' => 'Failed to create post'], 500);
             }
-        } catch (\Exception $e) {
-            $this->json(['error' => 'Failed to create post: ' . $e->getMessage()], 500);
+        } else {
+            $this->view('posts/create');
         }
     }
 
@@ -151,27 +135,38 @@ class PostController extends Controller {
      * Like a post
      */
     public function like() {
-        $this->requireLogin();
-
-        if (!$this->post()) {
-            $this->json(['error' => 'Invalid request method'], 405);
+        if (!$this->isLoggedIn()) {
+            $this->jsonResponse(['error' => 'Unauthorized'], 401);
+            return;
         }
 
-        $postId = (int) $this->post('post_id');
+        $postId = $_POST['post_id'] ?? null;
+        $userId = $_SESSION['user_id'];
+
         if (!$postId) {
-            $this->json(['error' => 'Invalid post ID'], 400);
+            $this->jsonResponse(['error' => 'Post ID is required'], 400);
+            return;
         }
 
-        try {
-            $success = $this->likeModel->likePost($postId, $this->getCurrentUserId());
-            if ($success) {
-                $likeCount = $this->likeModel->getLikeCount($postId);
-                $this->json(['success' => true, 'like_count' => $likeCount]);
-            } else {
-                $this->json(['error' => 'Post is already liked'], 400);
+        $likeId = $this->likeModel->addLike($userId, $postId);
+        if ($likeId) {
+            // Create notification for post owner
+            $post = $this->postModel->getPost($postId);
+            if ($post && $post['user_id'] != $userId) {
+                $this->notificationModel->createNotification(
+                    $post['user_id'],
+                    'like',
+                    $userId . ' liked your post',
+                    $likeId
+                );
             }
-        } catch (\Exception $e) {
-            $this->json(['error' => 'Failed to like post'], 500);
+
+            $this->jsonResponse([
+                'message' => 'Post liked successfully',
+                'like_count' => $this->likeModel->getLikeCount($postId)
+            ]);
+        } else {
+            $this->jsonResponse(['error' => 'Failed to like post'], 500);
         }
     }
 
@@ -179,27 +174,26 @@ class PostController extends Controller {
      * Unlike a post
      */
     public function unlike() {
-        $this->requireLogin();
-
-        if (!$this->post()) {
-            $this->json(['error' => 'Invalid request method'], 405);
+        if (!$this->isLoggedIn()) {
+            $this->jsonResponse(['error' => 'Unauthorized'], 401);
+            return;
         }
 
-        $postId = (int) $this->post('post_id');
+        $postId = $_POST['post_id'] ?? null;
+        $userId = $_SESSION['user_id'];
+
         if (!$postId) {
-            $this->json(['error' => 'Invalid post ID'], 400);
+            $this->jsonResponse(['error' => 'Post ID is required'], 400);
+            return;
         }
 
-        try {
-            $success = $this->likeModel->unlikePost($postId, $this->getCurrentUserId());
-            if ($success) {
-                $likeCount = $this->likeModel->getLikeCount($postId);
-                $this->json(['success' => true, 'like_count' => $likeCount]);
-            } else {
-                $this->json(['error' => 'Post is not liked'], 400);
-            }
-        } catch (\Exception $e) {
-            $this->json(['error' => 'Failed to unlike post'], 500);
+        if ($this->likeModel->removeLike($userId, $postId)) {
+            $this->jsonResponse([
+                'message' => 'Post unliked successfully',
+                'like_count' => $this->likeModel->getLikeCount($postId)
+            ]);
+        } else {
+            $this->jsonResponse(['error' => 'Failed to unlike post'], 500);
         }
     }
 
@@ -207,87 +201,78 @@ class PostController extends Controller {
      * Add comment to post
      */
     public function comment() {
-        $this->requireLogin();
-
-        if (!$this->post()) {
-            $this->json(['error' => 'Invalid request method'], 405);
+        if (!$this->isLoggedIn()) {
+            $this->jsonResponse(['error' => 'Unauthorized'], 401);
+            return;
         }
 
-        $postId = (int) $this->post('post_id');
-        $content = $this->post('content');
+        $postId = $_POST['post_id'] ?? null;
+        $content = $_POST['content'] ?? '';
+        $userId = $_SESSION['user_id'];
 
-        if (!$postId || !$content) {
-            $this->json(['error' => 'Missing required fields'], 400);
+        if (!$postId || empty($content)) {
+            $this->jsonResponse(['error' => 'Post ID and comment content are required'], 400);
+            return;
         }
 
-        try {
-            $commentId = $this->commentModel->addComment(
-                $postId,
-                $this->getCurrentUserId(),
-                $content
-            );
-
-            if ($commentId) {
-                $comment = $this->commentModel->find($commentId);
-                $this->json(['success' => true, 'comment' => $comment]);
-            } else {
-                $this->json(['error' => 'Failed to add comment'], 500);
+        $commentId = $this->commentModel->addComment($userId, $postId, $content);
+        if ($commentId) {
+            // Create notification for post owner
+            $post = $this->postModel->getPost($postId);
+            if ($post && $post['user_id'] != $userId) {
+                $this->notificationModel->createNotification(
+                    $post['user_id'],
+                    'comment',
+                    $userId . ' commented on your post',
+                    $commentId
+                );
             }
-        } catch (\Exception $e) {
-            $this->json(['error' => 'Failed to add comment'], 500);
+
+            $this->jsonResponse([
+                'message' => 'Comment added successfully',
+                'comment_count' => $this->commentModel->getCommentCount($postId)
+            ]);
+        } else {
+            $this->jsonResponse(['error' => 'Failed to add comment'], 500);
         }
     }
 
     /**
      * Get post comments
      */
-    public function comments() {
-        $this->requireLogin();
-
-        $postId = (int) $this->get('post_id');
-        if (!$postId) {
-            $this->json(['error' => 'Invalid post ID'], 400);
+    public function comments($postId) {
+        if (!$this->isLoggedIn()) {
+            $this->jsonResponse(['error' => 'Unauthorized'], 401);
+            return;
         }
 
-        $page = (int) $this->get('page', 1);
-        $perPage = 20;
+        $page = $_GET['page'] ?? 1;
+        $comments = $this->commentModel->getPostComments($postId, $page);
 
-        $comments = $this->commentModel->getPostComments($postId, $page, $perPage);
-
-        if ($this->isAjaxRequest()) {
-            $this->json($comments);
-        }
-
-        $this->render('posts/comments', [
-            'comments' => $comments,
-            'postId' => $postId
-        ]);
+        $this->jsonResponse($comments);
     }
 
     /**
      * Delete a post
      */
     public function delete() {
-        $this->requireLogin();
-
-        if (!$this->post()) {
-            $this->json(['error' => 'Invalid request method'], 405);
+        if (!$this->isLoggedIn()) {
+            $this->jsonResponse(['error' => 'Unauthorized'], 401);
+            return;
         }
 
-        $postId = (int) $this->post('post_id');
+        $postId = $_POST['post_id'] ?? null;
+        $userId = $_SESSION['user_id'];
+
         if (!$postId) {
-            $this->json(['error' => 'Invalid post ID'], 400);
+            $this->jsonResponse(['error' => 'Post ID is required'], 400);
+            return;
         }
 
-        try {
-            $success = $this->postModel->deletePost($postId, $this->getCurrentUserId());
-            if ($success) {
-                $this->json(['success' => true]);
-            } else {
-                $this->json(['error' => 'Failed to delete post'], 500);
-            }
-        } catch (\Exception $e) {
-            $this->json(['error' => 'Failed to delete post'], 500);
+        if ($this->postModel->deletePost($postId, $userId)) {
+            $this->jsonResponse(['message' => 'Post deleted successfully']);
+        } else {
+            $this->jsonResponse(['error' => 'Failed to delete post'], 500);
         }
     }
 } 

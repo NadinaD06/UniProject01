@@ -1,109 +1,134 @@
 <?php
+/**
+ * Notification Model
+ * Handles notification-related operations
+ */
 namespace App\Models;
 
-class Notification {
-    private $pdo;
-    
-    public function __construct($pdo) {
-        $this->pdo = $pdo;
+class Notification extends Model {
+    protected $table = 'notifications';
+    protected $fillable = [
+        'user_id',
+        'type',
+        'content',
+        'reference_id',
+        'is_read'
+    ];
+
+    /**
+     * Create a new notification
+     * @param int $userId User ID to notify
+     * @param string $type Notification type
+     * @param string $content Notification content
+     * @param int|null $referenceId Related entity ID
+     * @return int|bool Notification ID or false on failure
+     */
+    public function createNotification($userId, $type, $content, $referenceId = null) {
+        try {
+            $sql = "INSERT INTO {$this->table} (user_id, type, content, reference_id, created_at) 
+                    VALUES (?, ?, ?, ?, NOW())";
+            
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$userId, $type, $content, $referenceId]);
+            
+            return $this->db->lastInsertId();
+        } catch (\PDOException $e) {
+            error_log("Error creating notification: " . $e->getMessage());
+            return false;
+        }
     }
-    
-    public function create($data) {
-        $stmt = $this->pdo->prepare("
-            INSERT INTO notifications (user_id, type, related_id, content)
-            VALUES (?, ?, ?, ?)
-        ");
-        
-        return $stmt->execute([
-            $data['user_id'],
-            $data['type'],
-            $data['related_id'] ?? null,
-            $data['content']
-        ]);
+
+    /**
+     * Get user's notifications
+     * @param int $userId User ID
+     * @param int $page Page number
+     * @param int $perPage Notifications per page
+     * @return array
+     */
+    public function getUserNotifications($userId, $page = 1, $perPage = 20) {
+        $offset = ($page - 1) * $perPage;
+
+        $notifications = $this->db->fetchAll(
+            "SELECT * FROM {$this->table} 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT ? OFFSET ?",
+            [$userId, $perPage, $offset]
+        );
+
+        $total = $this->db->fetch(
+            "SELECT COUNT(*) as count FROM {$this->table} WHERE user_id = ?",
+            [$userId]
+        )['count'];
+
+        return [
+            'data' => $notifications,
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => ceil($total / $perPage)
+        ];
     }
-    
-    public function getForUser($userId, $limit = 20, $offset = 0) {
-        $stmt = $this->pdo->prepare("
-            SELECT n.*, 
-                   CASE 
-                       WHEN n.type = 'like' THEN (SELECT username FROM users WHERE id = (SELECT user_id FROM likes WHERE id = n.related_id))
-                       WHEN n.type = 'comment' THEN (SELECT username FROM users WHERE id = (SELECT user_id FROM comments WHERE id = n.related_id))
-                       WHEN n.type = 'follow' THEN (SELECT username FROM users WHERE id = (SELECT follower_id FROM follows WHERE id = n.related_id))
-                       ELSE NULL
-                   END as actor_username
-            FROM notifications n
-            WHERE n.user_id = ?
-            ORDER BY n.created_at DESC
-            LIMIT ? OFFSET ?
-        ");
-        
-        $stmt->execute([$userId, $limit, $offset]);
-        return $stmt->fetchAll();
-    }
-    
-    public function markAsRead($notificationId) {
-        $stmt = $this->pdo->prepare("
-            UPDATE notifications 
-            SET read_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
-        ");
-        
-        return $stmt->execute([$notificationId]);
-    }
-    
-    public function markAllAsRead($userId) {
-        $stmt = $this->pdo->prepare("
-            UPDATE notifications 
-            SET read_at = CURRENT_TIMESTAMP 
-            WHERE user_id = ? AND read_at IS NULL
-        ");
-        
-        return $stmt->execute([$userId]);
-    }
-    
+
+    /**
+     * Get unread notification count
+     * @param int $userId User ID
+     * @return int
+     */
     public function getUnreadCount($userId) {
-        $stmt = $this->pdo->prepare("
-            SELECT COUNT(*) as count
-            FROM notifications
-            WHERE user_id = ? AND read_at IS NULL
-        ");
+        $result = $this->db->fetch(
+            "SELECT COUNT(*) as count FROM {$this->table} 
+            WHERE user_id = ? AND is_read = FALSE",
+            [$userId]
+        );
         
-        $stmt->execute([$userId]);
-        return $stmt->fetch()['count'];
+        return (int) $result['count'];
     }
-    
-    public function createLikeNotification($likeId, $postId, $userId) {
-        $post = $this->pdo->prepare("SELECT user_id FROM posts WHERE id = ?")->execute([$postId])->fetch();
-        if ($post && $post['user_id'] != $userId) {
-            return $this->create([
-                'user_id' => $post['user_id'],
-                'type' => 'like',
-                'related_id' => $likeId,
-                'content' => 'liked your post'
-            ]);
+
+    /**
+     * Mark notifications as read
+     * @param int $userId User ID
+     * @param array|null $notificationIds Specific notification IDs to mark as read
+     * @return bool Success status
+     */
+    public function markAsRead($userId, $notificationIds = null) {
+        try {
+            if ($notificationIds) {
+                $placeholders = str_repeat('?,', count($notificationIds) - 1) . '?';
+                $sql = "UPDATE {$this->table} 
+                        SET is_read = TRUE 
+                        WHERE user_id = ? AND id IN ($placeholders)";
+                $params = array_merge([$userId], $notificationIds);
+            } else {
+                $sql = "UPDATE {$this->table} 
+                        SET is_read = TRUE 
+                        WHERE user_id = ?";
+                $params = [$userId];
+            }
+            
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute($params);
+        } catch (\PDOException $e) {
+            error_log("Error marking notifications as read: " . $e->getMessage());
+            return false;
         }
-        return false;
     }
-    
-    public function createCommentNotification($commentId, $postId, $userId) {
-        $post = $this->pdo->prepare("SELECT user_id FROM posts WHERE id = ?")->execute([$postId])->fetch();
-        if ($post && $post['user_id'] != $userId) {
-            return $this->create([
-                'user_id' => $post['user_id'],
-                'type' => 'comment',
-                'related_id' => $commentId,
-                'content' => 'commented on your post'
-            ]);
+
+    /**
+     * Delete old notifications
+     * @param int $daysOld Number of days after which to delete notifications
+     * @return bool Success status
+     */
+    public function deleteOldNotifications($daysOld = 30) {
+        try {
+            $sql = "DELETE FROM {$this->table} 
+                    WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)";
+            
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([$daysOld]);
+        } catch (\PDOException $e) {
+            error_log("Error deleting old notifications: " . $e->getMessage());
+            return false;
         }
-        return false;
-    }
-    
-    public function createFollowNotification($followId, $followerId, $followedId) {
-        return $this->create([
-            'user_id' => $followedId,
-            'type' => 'follow',
-            'related_id' => $followId,
-            'content' => 'started following you'
-        ]);
     }
 } 
