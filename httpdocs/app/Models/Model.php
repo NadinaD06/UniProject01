@@ -1,4 +1,10 @@
 <?php
+
+namespace App\Models;
+
+use App\Core\Database;
+use PDO;
+
 /**
  * Base Model class
  * Provides common functionality for all models
@@ -14,8 +20,8 @@ abstract class Model {
      * Constructor
      * Initializes database connection
      */
-    public function __construct() {
-        $this->db = Database::getInstance();
+    public function __construct(PDO $db = null) {
+        $this->db = $db ?? Database::getInstance()->getConnection();
     }
 
     /**
@@ -24,10 +30,11 @@ abstract class Model {
      * @return array|false
      */
     public function find($id) {
-        return $this->db->fetch(
-            "SELECT * FROM {$this->table} WHERE {$this->primaryKey} = ?",
-            [$id]
+        $stmt = $this->db->prepare(
+            "SELECT * FROM {$this->table} WHERE {$this->primaryKey} = ?"
         );
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     /**
@@ -42,10 +49,11 @@ abstract class Model {
             $where = 'WHERE ' . implode(' AND ', $conditions);
         }
         
-        return $this->db->fetchAll(
-            "SELECT * FROM {$this->table} {$where}",
-            $params
+        $stmt = $this->db->prepare(
+            "SELECT * FROM {$this->table} {$where}"
         );
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**
@@ -56,7 +64,17 @@ abstract class Model {
     public function create($data) {
         // Filter out non-fillable fields
         $data = array_intersect_key($data, array_flip($this->fillable));
-        return $this->db->insert($this->table, $data);
+        
+        $fields = array_keys($data);
+        $placeholders = array_fill(0, count($fields), '?');
+        
+        $query = "INSERT INTO {$this->table} (" . implode(', ', $fields) . ") 
+                 VALUES (" . implode(', ', $placeholders) . ")";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->execute(array_values($data));
+        
+        return $this->db->lastInsertId();
     }
 
     /**
@@ -68,12 +86,18 @@ abstract class Model {
     public function update($id, $data) {
         // Filter out non-fillable fields
         $data = array_intersect_key($data, array_flip($this->fillable));
-        return $this->db->update(
-            $this->table,
-            $data,
-            "{$this->primaryKey} = ?",
-            [$id]
-        );
+        
+        $fields = array_map(function($field) {
+            return "{$field} = ?";
+        }, array_keys($data));
+        
+        $query = "UPDATE {$this->table} SET " . implode(', ', $fields) . " 
+                 WHERE {$this->primaryKey} = ?";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->execute(array_merge(array_values($data), [$id]));
+        
+        return $stmt->rowCount();
     }
 
     /**
@@ -82,11 +106,11 @@ abstract class Model {
      * @return int Number of affected rows
      */
     public function delete($id) {
-        return $this->db->delete(
-            $this->table,
-            "{$this->primaryKey} = ?",
-            [$id]
+        $stmt = $this->db->prepare(
+            "DELETE FROM {$this->table} WHERE {$this->primaryKey} = ?"
         );
+        $stmt->execute([$id]);
+        return $stmt->rowCount();
     }
 
     /**
@@ -114,15 +138,17 @@ abstract class Model {
             $where = 'WHERE ' . implode(' AND ', $conditions);
         }
 
-        $total = $this->db->fetch(
-            "SELECT COUNT(*) as count FROM {$this->table} {$where}",
-            $params
-        )['count'];
-
-        $records = $this->db->fetchAll(
-            "SELECT * FROM {$this->table} {$where} LIMIT ? OFFSET ?",
-            array_merge($params, [$perPage, $offset])
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) as count FROM {$this->table} {$where}"
         );
+        $stmt->execute($params);
+        $total = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+
+        $stmt = $this->db->prepare(
+            "SELECT * FROM {$this->table} {$where} LIMIT ? OFFSET ?"
+        );
+        $stmt->execute(array_merge($params, [$perPage, $offset]));
+        $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return [
             'data' => $records,

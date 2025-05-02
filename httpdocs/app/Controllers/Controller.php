@@ -1,6 +1,11 @@
 <?php
 namespace App\Controllers;
 
+use App\Services\AuthService;
+use App\Services\Request;
+use App\Services\Response;
+use App\Services\View;
+
 /**
  * Base Controller class
  * Provides common functionality for all controllers
@@ -10,15 +15,23 @@ abstract class Controller {
     protected $db;
     protected $session;
     protected $pdo;
+    protected $auth;
+    protected $request;
+    protected $response;
+    protected $view;
 
     /**
      * Constructor
      * Initializes common resources
      */
-    public function __construct($pdo = null) {
+    public function __construct(\PDO $db) {
         $this->config = require __DIR__ . '/../config/config.php';
-        $this->db = Database::getInstance();
-        $this->pdo = $pdo ?? $this->db->getConnection();
+        $this->db = $db;
+        $this->pdo = $db;
+        $this->auth = new AuthService();
+        $this->request = new Request();
+        $this->response = new Response();
+        $this->view = new View();
         $this->startSession();
     }
 
@@ -86,8 +99,7 @@ abstract class Controller {
      * @param string $url URL to redirect to
      */
     protected function redirect($url) {
-        header("Location: {$url}");
-        exit;
+        return $this->response->redirect($url);
     }
 
     /**
@@ -121,27 +133,7 @@ abstract class Controller {
      * @param array $data Data to pass to view
      */
     protected function render($view, $data = []) {
-        // Extract data to make variables available in view
-        extract($data);
-
-        // Get flash message
-        $flash = $this->getFlash();
-
-        // Start output buffering
-        ob_start();
-
-        // Include view file
-        require __DIR__ . "/../views/{$view}.php";
-
-        // Get buffered content
-        $content = ob_get_clean();
-
-        // Include layout if not an API response
-        if (!isset($data['is_api'])) {
-            require __DIR__ . "/../views/layouts/main.php";
-        } else {
-            echo $content;
-        }
+        return $this->view->render($view, $data);
     }
 
     /**
@@ -150,10 +142,7 @@ abstract class Controller {
      * @param int $status HTTP status code
      */
     protected function json($data, $status = 200) {
-        http_response_code($status);
-        header('Content-Type: application/json');
-        echo json_encode($data);
-        exit;
+        return $this->response->json($data, $status);
     }
 
     /**
@@ -202,63 +191,35 @@ abstract class Controller {
      */
     protected function validate($data, $rules) {
         $errors = [];
-
         foreach ($rules as $field => $rule) {
-            $value = $data[$field] ?? null;
-            $ruleArray = explode('|', $rule);
-
-            foreach ($ruleArray as $singleRule) {
-                $params = [];
-                if (strpos($singleRule, ':') !== false) {
-                    list($singleRule, $param) = explode(':', $singleRule);
-                    $params = explode(',', $param);
-                }
-
-                switch ($singleRule) {
-                    case 'required':
-                        if (empty($value)) {
-                            $errors[$field][] = "The {$field} field is required.";
-                        }
-                        break;
-
-                    case 'email':
-                        if (!empty($value) && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
-                            $errors[$field][] = "The {$field} must be a valid email address.";
-                        }
-                        break;
-
-                    case 'min':
-                        if (!empty($value) && strlen($value) < $params[0]) {
-                            $errors[$field][] = "The {$field} must be at least {$params[0]} characters.";
-                        }
-                        break;
-
-                    case 'max':
-                        if (!empty($value) && strlen($value) > $params[0]) {
-                            $errors[$field][] = "The {$field} may not be greater than {$params[0]} characters.";
-                        }
-                        break;
-
-                    case 'matches':
-                        if ($value !== $data[$params[0]]) {
-                            $errors[$field][] = "The {$field} must match {$params[0]}.";
-                        }
-                        break;
-
-                    case 'unique':
-                        list($table, $column) = $params;
-                        $exists = $this->db->fetch(
-                            "SELECT 1 FROM {$table} WHERE {$column} = ?",
-                            [$value]
-                        );
-                        if ($exists) {
-                            $errors[$field][] = "The {$field} has already been taken.";
-                        }
-                        break;
-                }
+            if (strpos($rule, 'required') !== false && (!isset($data[$field]) || empty($data[$field]))) {
+                $errors[$field] = ucfirst($field) . ' is required';
             }
         }
-
         return $errors;
+    }
+
+    protected function error($message, $data = [], $status = 400)
+    {
+        return $this->response->error($message, $data, $status);
+    }
+
+    protected function success($data = [], $message = 'Success')
+    {
+        return $this->response->success($data, $message);
+    }
+
+    protected function requireAuth()
+    {
+        if (!$this->auth->check()) {
+            return $this->redirect('/login');
+        }
+    }
+
+    protected function requireGuest()
+    {
+        if ($this->auth->check()) {
+            return $this->redirect('/');
+        }
     }
 } 

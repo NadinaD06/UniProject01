@@ -6,24 +6,27 @@
 
 namespace App\Core;
 
+use PDO;
+use PDOException;
+use Exception;
+
 class Database {
     private static $instance = null;
-    private $connection;
+    private $pdo;
     
     /**
      * Private constructor to enforce singleton pattern
      */
     private function __construct() {
-        $config = require_once(APP_ROOT . '/config/database.php');
-        
         try {
-            $dsn = "mysql:host={$config['host']};dbname={$config['database']};charset={$config['charset']}";
-            
-            $this->connection = new \PDO($dsn, $config['username'], $config['password'], $config['options']);
-        } catch (\PDOException $e) {
-            // Log error and throw custom exception
-            error_log("Database connection error: " . $e->getMessage());
-            throw new \Exception("Database connection failed. Please try again later.");
+            $this->pdo = new PDO(
+                "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME,
+                DB_USER,
+                DB_PASS,
+                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+        } catch (PDOException $e) {
+            throw new Exception("Database connection failed: " . $e->getMessage());
         }
     }
     
@@ -42,10 +45,10 @@ class Database {
     /**
      * Get database connection
      * 
-     * @return \PDO
+     * @return PDO
      */
     public function getConnection() {
-        return $this->connection;
+        return $this->pdo;
     }
     
     /**
@@ -53,10 +56,10 @@ class Database {
      * 
      * @param string $sql SQL query
      * @param array $params Query parameters
-     * @return \PDOStatement Statement
+     * @return PDOStatement Statement
      */
     public function query($sql, $params = []) {
-        $stmt = $this->connection->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         return $stmt;
     }
@@ -69,7 +72,9 @@ class Database {
      * @return array|false Row data or false if no row found
      */
     public function fetch($sql, $params = []) {
-        return $this->query($sql, $params)->fetch();
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
     
     /**
@@ -80,7 +85,9 @@ class Database {
      * @return array List of rows
      */
     public function fetchAll($sql, $params = []) {
-        return $this->query($sql, $params)->fetchAll();
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
     /**
@@ -91,13 +98,16 @@ class Database {
      * @return int|bool Last insert ID or false on failure
      */
     public function insert($table, $data) {
-        $columns = implode(', ', array_keys($data));
-        $placeholders = implode(', ', array_fill(0, count($data), '?'));
+        $fields = array_keys($data);
+        $placeholders = array_fill(0, count($fields), '?');
         
-        $sql = "INSERT INTO {$table} ({$columns}) VALUES ({$placeholders})";
+        $query = "INSERT INTO {$table} (" . implode(', ', $fields) . ") 
+                 VALUES (" . implode(', ', $placeholders) . ")";
         
-        $this->query($sql, array_values($data));
-        return $this->connection->lastInsertId();
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute(array_values($data));
+        
+        return $this->pdo->lastInsertId();
     }
     
     /**
@@ -106,18 +116,20 @@ class Database {
      * @param string $table Table name
      * @param array $data Column data to update (column => value)
      * @param string $where WHERE clause (excluding 'WHERE')
-     * @param array $whereParams WHERE clause parameters
+     * @param array $params WHERE clause parameters
      * @return bool Success status
      */
-    public function update($table, $data, $where, $whereParams = []) {
-        $set = implode(' = ?, ', array_keys($data)) . ' = ?';
+    public function update($table, $data, $where, $params = []) {
+        $fields = array_map(function($field) {
+            return "{$field} = ?";
+        }, array_keys($data));
         
-        $sql = "UPDATE {$table} SET {$set} WHERE {$where}";
+        $query = "UPDATE {$table} SET " . implode(', ', $fields) . " WHERE {$where}";
         
-        $params = array_merge(array_values($data), $whereParams);
-        $stmt = $this->query($sql, $params);
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute(array_merge(array_values($data), $params));
         
-        return $stmt->rowCount() > 0;
+        return $stmt->rowCount();
     }
     
     /**
@@ -129,10 +141,12 @@ class Database {
      * @return bool Success status
      */
     public function delete($table, $where, $params = []) {
-        $sql = "DELETE FROM {$table} WHERE {$where}";
-        $stmt = $this->query($sql, $params);
+        $query = "DELETE FROM {$table} WHERE {$where}";
         
-        return $stmt->rowCount() > 0;
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute($params);
+        
+        return $stmt->rowCount();
     }
     
     /**
@@ -141,7 +155,7 @@ class Database {
      * @return bool Success status
      */
     public function beginTransaction() {
-        return $this->connection->beginTransaction();
+        return $this->pdo->beginTransaction();
     }
     
     /**
@@ -150,7 +164,7 @@ class Database {
      * @return bool Success status
      */
     public function commit() {
-        return $this->connection->commit();
+        return $this->pdo->commit();
     }
     
     /**
@@ -158,7 +172,7 @@ class Database {
      * 
      * @return bool Success status
      */
-    public function rollback() {
-        return $this->connection->rollBack();
+    public function rollBack() {
+        return $this->pdo->rollBack();
     }
 }

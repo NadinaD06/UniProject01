@@ -14,9 +14,9 @@ class AuthController extends Controller {
     private $user;
     private $authService;
     
-    public function __construct($pdo = null) {
-        parent::__construct($pdo);
-        $this->user = new User($this->pdo);
+    public function __construct(\PDO $db) {
+        parent::__construct($db);
+        $this->user = new User($this->db);
         $this->authService = new AuthService();
     }
     
@@ -43,7 +43,7 @@ class AuthController extends Controller {
             $password = $_POST['password'];
             
             try {
-                $stmt = $this->pdo->prepare("SELECT * FROM users WHERE email = ?");
+                $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ?");
                 $stmt->execute([$email]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
                 
@@ -52,17 +52,14 @@ class AuthController extends Controller {
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['is_admin'] = $user['is_admin'];
                     
-                    header('Location: /home');
-                    exit;
+                    return $this->redirect('/home');
                 } else {
                     $_SESSION['errors'] = ['Invalid email or password'];
-                    header('Location: /login');
-                    exit;
+                    return $this->redirect('/login');
                 }
             } catch (PDOException $e) {
                 $_SESSION['errors'] = ['An error occurred. Please try again.'];
-                header('Location: /login');
-                exit;
+                return $this->redirect('/login');
             }
         }
     }
@@ -114,19 +111,18 @@ class AuthController extends Controller {
             if (empty($errors)) {
                 try {
                     // Check if email already exists
-                    $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = ?");
+                    $stmt = $this->db->prepare("SELECT id FROM users WHERE email = ?");
                     $stmt->execute([$email]);
                     if ($stmt->fetch()) {
                         $errors[] = 'Email already registered';
                     } else {
                         // Create new user
                         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                        $stmt = $this->pdo->prepare("INSERT INTO users (username, email, password, created_at) VALUES (?, ?, ?, NOW())");
+                        $stmt = $this->db->prepare("INSERT INTO users (username, email, password, created_at) VALUES (?, ?, ?, NOW())");
                         $stmt->execute([$username, $email, $hashed_password]);
                         
                         $_SESSION['success'] = 'Registration successful! Please login.';
-                        header('Location: /login');
-                        exit;
+                        return $this->redirect('/login');
                     }
                 } catch (PDOException $e) {
                     $errors[] = 'An error occurred. Please try again.';
@@ -139,8 +135,7 @@ class AuthController extends Controller {
                     'username' => $username,
                     'email' => $email
                 ];
-                header('Location: /register');
-                exit;
+                return $this->redirect('/register');
             }
         }
     }
@@ -150,8 +145,7 @@ class AuthController extends Controller {
      */
     public function logout() {
         session_destroy();
-        header('Location: /login');
-        exit;
+        return $this->redirect('/login');
     }
     
     /**
@@ -178,7 +172,7 @@ class AuthController extends Controller {
         }
         
         // Get input data
-        $data = $this->getInputData();
+        $data = $this->request->all();
         
         // Validate CSRF token
         if (!isset($data['csrf_token']) || !$this->authService->validateCsrfToken($data['csrf_token'])) {
@@ -187,11 +181,11 @@ class AuthController extends Controller {
         
         // Validate required fields
         if (!isset($data['email']) || empty($data['email'])) {
-            if ($this->isAjaxRequest()) {
+            if ($this->request->isAjax()) {
                 return $this->error('Email is required');
             }
             
-            $this->setFlashMessage('Email is required', 'error');
+            $_SESSION['error'] = 'Email is required';
             return $this->redirect('/forgot-password');
         }
         
@@ -199,75 +193,79 @@ class AuthController extends Controller {
         $user = $this->user->findBy('email', $data['email']);
         
         if (!$user) {
-            // For security reasons, don't disclose if email exists
-            if ($this->isAjaxRequest()) {
-                return $this->success([], 'If your email is registered, you will receive a password reset link shortly.');
+            if ($this->request->isAjax()) {
+                return $this->error('No account found with that email address');
             }
             
-            $this->setFlashMessage('If your email is registered, you will receive a password reset link shortly.', 'success');
-            return $this->redirect('/login');
+            $_SESSION['error'] = 'No account found with that email address';
+            return $this->redirect('/forgot-password');
         }
         
-        // Generate password reset token
+        // Generate reset token
         $token = bin2hex(random_bytes(32));
-        $expires = time() + (60 * 60); // 1 hour
+        $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
         
-        // Store token in database
-        $this->user->storePasswordResetToken($user['id'], $token, $expires);
-        
-        // In a real application, send email with reset link
-        // For this example, we'll just show a message
-        
-        if ($this->isAjaxRequest()) {
-            return $this->success([], 'Password reset link has been sent to your email.');
+        try {
+            $stmt = $this->db->prepare("UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?");
+            $stmt->execute([$token, $expires, $user['id']]);
+            
+            // TODO: Send reset email
+            
+            if ($this->request->isAjax()) {
+                return $this->success([], 'Password reset instructions have been sent to your email');
+            }
+            
+            $_SESSION['success'] = 'Password reset instructions have been sent to your email';
+            return $this->redirect('/login');
+        } catch (PDOException $e) {
+            if ($this->request->isAjax()) {
+                return $this->error('An error occurred. Please try again.');
+            }
+            
+            $_SESSION['error'] = 'An error occurred. Please try again.';
+            return $this->redirect('/forgot-password');
         }
-        
-        $this->setFlashMessage('Password reset link has been sent to your email.', 'success');
-        return $this->redirect('/login');
     }
     
     /**
      * Display reset password page
      */
     public function showResetPassword() {
-        // Check if already logged in
-        if ($this->authService->check()) {
-            return $this->redirect('/feed');
-        }
+        $token = $_GET['token'] ?? '';
         
-        // Validate token
-        $token = $_GET['token'] ?? null;
-        
-        if (!$token) {
-            $this->setFlashMessage('Invalid password reset token', 'error');
+        if (empty($token)) {
             return $this->redirect('/login');
         }
         
-        // Check if token exists and is valid
-        $valid = $this->user->isValidPasswordResetToken($token);
-        
-        if (!$valid) {
-            $this->setFlashMessage('Password reset token is invalid or has expired', 'error');
+        try {
+            $stmt = $this->db->prepare("SELECT id FROM users WHERE reset_token = ? AND reset_expires > NOW()");
+            $stmt->execute([$token]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$user) {
+                $_SESSION['error'] = 'Invalid or expired reset token';
+                return $this->redirect('/login');
+            }
+            
+            return $this->view('auth/reset-password', [
+                'token' => $token,
+                'csrf_token' => $this->authService->generateCsrfToken()
+            ]);
+        } catch (PDOException $e) {
+            $_SESSION['error'] = 'An error occurred. Please try again.';
             return $this->redirect('/login');
         }
-        
-        return $this->view('auth/reset-password', [
-            'token' => $token,
-            'csrf_token' => $this->authService->generateCsrfToken()
-        ]);
     }
     
     /**
      * Process reset password request
      */
     public function resetPassword() {
-        // Validate request method
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             return $this->redirect('/login');
         }
         
-        // Get input data
-        $data = $this->getInputData();
+        $data = $this->request->all();
         
         // Validate CSRF token
         if (!isset($data['csrf_token']) || !$this->authService->validateCsrfToken($data['csrf_token'])) {
@@ -275,58 +273,46 @@ class AuthController extends Controller {
         }
         
         // Validate required fields
-        $requiredFields = ['token', 'password', 'password_confirmation'];
-        $errors = [];
-        
-        foreach ($requiredFields as $field) {
-            if (!isset($data[$field]) || empty($data[$field])) {
-                $errors[$field] = ucfirst(str_replace('_', ' ', $field)) . ' is required';
-            }
+        if (!isset($data['token']) || empty($data['token'])) {
+            return $this->error('Invalid reset token');
         }
         
-        // Validate password confirmation
-        if (isset($data['password'], $data['password_confirmation']) &&
-            $data['password'] !== $data['password_confirmation']) {
-            $errors['password_confirmation'] = 'Passwords do not match';
+        if (!isset($data['password']) || empty($data['password'])) {
+            return $this->error('Password is required');
         }
         
-        // If there are validation errors
-        if (!empty($errors)) {
-            if ($this->isAjaxRequest()) {
-                return $this->error('Validation failed', $errors);
+        if (!isset($data['confirm_password']) || $data['password'] !== $data['confirm_password']) {
+            return $this->error('Passwords do not match');
+        }
+        
+        try {
+            // Find user with valid reset token
+            $stmt = $this->db->prepare("SELECT id FROM users WHERE reset_token = ? AND reset_expires > NOW()");
+            $stmt->execute([$data['token']]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$user) {
+                return $this->error('Invalid or expired reset token');
             }
             
-            // Set error messages and redirect back to reset password page
-            $this->setFlashMessage('Please fix the errors below', 'error');
-            $this->setValidationErrors($errors);
-            return $this->redirect('/reset-password?token=' . urlencode($data['token']));
-        }
-        
-        // Get user by token
-        $user = $this->user->getUserByPasswordResetToken($data['token']);
-        
-        if (!$user) {
-            if ($this->isAjaxRequest()) {
-                return $this->error('Invalid token');
+            // Update password and clear reset token
+            $hashed_password = password_hash($data['password'], PASSWORD_DEFAULT);
+            $stmt = $this->db->prepare("UPDATE users SET password = ?, reset_token = NULL, reset_expires = NULL WHERE id = ?");
+            $stmt->execute([$hashed_password, $user['id']]);
+            
+            if ($this->request->isAjax()) {
+                return $this->success([], 'Password has been reset successfully');
             }
             
-            $this->setFlashMessage('Password reset token is invalid or has expired', 'error');
+            $_SESSION['success'] = 'Password has been reset successfully';
+            return $this->redirect('/login');
+        } catch (PDOException $e) {
+            if ($this->request->isAjax()) {
+                return $this->error('An error occurred. Please try again.');
+            }
+            
+            $_SESSION['error'] = 'An error occurred. Please try again.';
             return $this->redirect('/login');
         }
-        
-        // Update user's password
-        $this->user->updatePassword($user['id'], $data['password']);
-        
-        // Remove the token
-        $this->user->deletePasswordResetToken($data['token']);
-        
-        if ($this->isAjaxRequest()) {
-            return $this->success([
-                'redirect' => '/login'
-            ], 'Password has been reset successfully. You can now log in with your new password.');
-        }
-        
-        $this->setFlashMessage('Password has been reset successfully. You can now log in with your new password.', 'success');
-        return $this->redirect('/login');
     }
 }
