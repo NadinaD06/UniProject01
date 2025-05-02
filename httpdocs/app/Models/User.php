@@ -18,10 +18,8 @@ class User extends Model {
     ];
     protected $hidden = ['password'];
 
-    private $db;
-    
     public function __construct($db) {
-        $this->db = $db;
+        parent::__construct($db);
     }
 
     /**
