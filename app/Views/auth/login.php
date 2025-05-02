@@ -1,200 +1,74 @@
-<?php
-/**
- * Login view
- */
-$title = "Login - " . $config['APP_NAME'];
-require_once __DIR__ . '/../layouts/header.php';
-?>
-
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header text-center">
-                    <h2>Welcome Back!</h2>
-                    <p class="lead">Sign in to continue your social journey</p>
-                </div>
-                <div class="card-body">
-                    <?php if (isset($error)): ?>
-                        <div class="alert alert-danger">
-                            <?php echo htmlspecialchars($error); ?>
-                        </div>
-                    <?php endif; ?>
-
-                    <form action="/login" method="POST">
-                        <div class="form-group">
-                            <label for="username">Username</label>
-                            <input type="text" class="form-control" id="username" name="username" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="password">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                        </div>
-
-                        <div class="form-group">
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                                <label class="form-check-label" for="remember">Remember me</label>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Social Media Site</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/assets/css/style.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container">
+        <div class="row justify-content-center mt-5">
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <h2 class="text-center mb-4">Login</h2>
+                        
+                        <?php if (isset($_SESSION['success'])): ?>
+                            <div class="alert alert-success">
+                                <?php 
+                                echo $_SESSION['success'];
+                                unset($_SESSION['success']);
+                                ?>
                             </div>
+                        <?php endif; ?>
+                        
+                        <?php if (isset($_SESSION['errors'])): ?>
+                            <div class="alert alert-danger">
+                                <ul class="mb-0">
+                                    <?php foreach ($_SESSION['errors'] as $error): ?>
+                                        <li><?php echo htmlspecialchars($error); ?></li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                            <?php unset($_SESSION['errors']); ?>
+                        <?php endif; ?>
+                        
+                        <form action="/login" method="POST">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" 
+                                       class="form-control" 
+                                       id="email" 
+                                       name="email" 
+                                       value="<?php echo isset($_SESSION['form_data']['email']) ? htmlspecialchars($_SESSION['form_data']['email']) : ''; ?>"
+                                       required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" 
+                                       class="form-control" 
+                                       id="password" 
+                                       name="password" 
+                                       required>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">Login</button>
+                            </div>
+                        </form>
+                        
+                        <div class="text-center mt-3">
+                            <p>Don't have an account? <a href="/register">Register here</a></p>
                         </div>
-
-                        <button type="submit" class="btn btn-primary btn-block">Sign In</button>
-                    </form>
-
-                    <div class="text-center mt-3">
-                        <p>Don't have an account? <a href="/register">Register here</a></p>
-                        <p><a href="/forgot-password">Forgot your password?</a></p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<style>
-.card {
-    border-radius: 20px;
-    box-shadow: 0 4px 6px var(--shadow-color);
-    border: 3px solid var(--primary-color);
-    margin-top: 2rem;
-}
-
-.card-header {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: white;
-    border-radius: 17px 17px 0 0;
-    padding: 2rem;
-}
-
-.card-header h2 {
-    margin: 0;
-    font-size: 2.5rem;
-    text-shadow: 2px 2px 0 var(--accent-color);
-}
-
-.card-body {
-    padding: 2rem;
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-control {
-    border-radius: 15px;
-    padding: 0.8rem;
-    border: 2px solid var(--primary-color);
-}
-
-.btn-primary {
-    background-color: var(--primary-color);
-    border: none;
-    padding: 1rem;
-    font-size: 1.2rem;
-    border-radius: 25px;
-    transition: all 0.3s ease;
-}
-
-.btn-primary:hover {
-    background-color: var(--secondary-color);
-    transform: scale(1.05);
-}
-
-.alert {
-    border-radius: 15px;
-    padding: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-a {
-    color: var(--primary-color);
-    text-decoration: none;
-    transition: color 0.3s ease;
-}
-
-a:hover {
-    color: var(--secondary-color);
-    text-decoration: none;
-}
-</style>
-
-<?php require_once __DIR__ . '/../layouts/footer.php'; ?>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const loginForm = document.querySelector('.auth-form');
-        
-        loginForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Disable submit button to prevent multiple submissions
-            const submitButton = this.querySelector('button[type="submit"]');
-            submitButton.disabled = true;
-            submitButton.innerHTML = 'Logging in...';
-            
-            // Get form data
-            const formData = new FormData(this);
-            
-            // Send AJAX request
-            fetch('/login', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Redirect to dashboard or specified redirect URL
-                    window.location.href = data.data.redirect || '/feed';
-                } else {
-                    // Display error message
-                    const errorMessage = data.message || 'An error occurred during login.';
-                    
-                    // Create or update alert message
-                    let alertElement = document.querySelector('.alert');
-                    if (!alertElement) {
-                        alertElement = document.createElement('div');
-                        alertElement.className = 'alert alert-error';
-                        loginForm.parentNode.insertBefore(alertElement, loginForm);
-                    } else {
-                        alertElement.className = 'alert alert-error';
-                    }
-                    
-                    alertElement.textContent = errorMessage;
-                    
-                    // Re-enable submit button
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = 'Log In';
-                }
-            })
-            .catch(error => {
-                console.error('Login error:', error);
-                
-                // Display generic error message
-                let alertElement = document.querySelector('.alert');
-                if (!alertElement) {
-                    alertElement = document.createElement('div');
-                    alertElement.className = 'alert alert-error';
-                    loginForm.parentNode.insertBefore(alertElement, loginForm);
-                } else {
-                    alertElement.className = 'alert alert-error';
-                }
-                
-                alertElement.textContent = 'A network error occurred. Please try again.';
-                
-                // Re-enable submit button
-                submitButton.disabled = false;
-                submitButton.innerHTML = 'Log In';
-            });
-        });
-    });
-</script>
-
-<?php
-// Clear session data
-unset($_SESSION['old_input']);
-unset($_SESSION['validation_errors']);
-?>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -160,12 +160,19 @@ class Post {
      * @return array
      */
     public function getPostStats($period) {
-        $dateFormat = match($period) {
-            'week' => '%Y-%u',
-            'month' => '%Y-%m',
-            'year' => '%Y',
-            default => '%Y-%m'
-        };
+        $dateFormat = '%Y-%m'; // Default format
+        
+        switch ($period) {
+            case 'week':
+                $dateFormat = '%Y-%u';
+                break;
+            case 'month':
+                $dateFormat = '%Y-%m';
+                break;
+            case 'year':
+                $dateFormat = '%Y';
+                break;
+        }
         
         $sql = "SELECT 
                 DATE_FORMAT(created_at, :date_format) as period,
