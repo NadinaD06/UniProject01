@@ -36,9 +36,37 @@ try {
     
     // List all tables
     $stmt = $pdo->query("SHOW TABLES");
+    $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
     echo "<h3>Available Tables:</h3>";
-    while ($row = $stmt->fetch()) {
-        echo "- " . $row[0] . "<br>";
+    if (empty($tables)) {
+        echo "<p style='color: orange;'>No tables found in the database. You may need to run the database setup script.</p>";
+        echo "<p>To set up the database, please run: <code>setup.php</code></p>";
+    } else {
+        foreach ($tables as $table) {
+            echo "- " . htmlspecialchars($table) . "<br>";
+        }
+    }
+    
+    // Check if required tables exist
+    $required_tables = ['users', 'posts', 'comments', 'likes', 'follows'];
+    $missing_tables = [];
+    
+    foreach ($required_tables as $table) {
+        if (!in_array($table, $tables)) {
+            $missing_tables[] = $table;
+        }
+    }
+    
+    if (!empty($missing_tables)) {
+        echo "<h3>Missing Required Tables:</h3>";
+        echo "<p style='color: orange;'>The following required tables are missing:</p>";
+        echo "<ul>";
+        foreach ($missing_tables as $table) {
+            echo "<li>" . htmlspecialchars($table) . "</li>";
+        }
+        echo "</ul>";
+        echo "<p>Please run the database setup script to create these tables.</p>";
     }
     
 } catch (PDOException $e) {
