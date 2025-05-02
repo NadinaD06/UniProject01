@@ -4,13 +4,38 @@
  */
 
 // Error handling
-error_reporting(E_ALL);
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
 ini_set('display_errors', 1);
+
+// Set error handler
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    if (!(error_reporting() & $errno)) {
+        return false;
+    }
+    
+    $error = [
+        'type' => $errno,
+        'message' => $errstr,
+        'file' => $errfile,
+        'line' => $errline
+    ];
+    
+    error_log(json_encode($error));
+    return true;
+});
+
+// Set exception handler
+set_exception_handler(function($e) {
+    error_log($e->getMessage());
+    header('HTTP/1.1 500 Internal Server Error');
+    echo 'An error occurred. Please try again later.';
+    exit;
+});
 
 try {
     // Load the bootstrap file
     require_once dirname(__DIR__) . '/app/bootstrap.php';
-} catch (Exception $e) {
+} catch (Throwable $e) {
     // Log the error
     error_log($e->getMessage());
     
