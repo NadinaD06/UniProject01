@@ -11,8 +11,8 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
 ini_set('display_errors', 1);
 
 // Define base paths
-define('ROOT_PATH', dirname(__DIR__));
-define('APP_PATH', __DIR__);
+define('ROOT_PATH', dirname(dirname(__DIR__))); // Go up one more level to handle double httpdocs
+define('APP_PATH', dirname(__FILE__));
 define('CONFIG_PATH', dirname(ROOT_PATH) . '/config');
 define('PUBLIC_PATH', ROOT_PATH);
 define('UPLOAD_PATH', PUBLIC_PATH . '/uploads');
@@ -26,17 +26,23 @@ error_log("CONFIG_PATH: " . CONFIG_PATH);
 spl_autoload_register(function ($class) {
     // Convert namespace to full file path
     $file = str_replace('\\', '/', $class) . '.php';
+    error_log("Attempting to load class: " . $class);
+    error_log("Looking for file: " . $file);
     
     // Check in app directory first
-    $appFile = ROOT_PATH . '/app/' . $file;
+    $appFile = APP_PATH . '/' . $file;
+    error_log("Checking app file: " . $appFile);
     if (file_exists($appFile)) {
+        error_log("Found file in app directory: " . $appFile);
         require $appFile;
         return true;
     }
     
     // Check in root directory
     $rootFile = ROOT_PATH . '/' . $file;
+    error_log("Checking root file: " . $rootFile);
     if (file_exists($rootFile)) {
+        error_log("Found file in root directory: " . $rootFile);
         require $rootFile;
         return true;
     }
