@@ -3,13 +3,6 @@
  * Bootstrap file - Initializes the application
  */
 
-// Start session
-session_start();
-
-// Set error reporting
-error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
-ini_set('display_errors', 1);
-
 // Define base paths
 define('ROOT_PATH', dirname(dirname(__DIR__))); // Go up one more level to handle double httpdocs
 define('APP_PATH', dirname(__FILE__));
@@ -21,6 +14,23 @@ define('UPLOAD_PATH', PUBLIC_PATH . '/uploads');
 error_log("ROOT_PATH: " . ROOT_PATH);
 error_log("APP_PATH: " . APP_PATH);
 error_log("CONFIG_PATH: " . CONFIG_PATH);
+
+// Load configuration first
+$configFile = CONFIG_PATH . '/config.php';
+error_log("Loading config file: " . $configFile);
+if (!file_exists($configFile)) {
+    throw new Exception("Configuration file not found at: " . $configFile);
+}
+require_once $configFile;
+
+// Start session after loading config
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Set error reporting
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+ini_set('display_errors', 1);
 
 // Autoload classes
 spl_autoload_register(function ($class) {
@@ -38,26 +48,63 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
-    // Check in httpdocs directory
-    $httpdocsFile = dirname(ROOT_PATH) . '/httpdocs/' . $file;
-    error_log("Checking httpdocs file: " . $httpdocsFile);
-    if (file_exists($httpdocsFile)) {
-        error_log("Found file in httpdocs directory: " . $httpdocsFile);
-        require $httpdocsFile;
+    // Check in app/Core directory
+    $coreFile = APP_PATH . '/Core/' . basename($file);
+    error_log("Checking core file: " . $coreFile);
+    if (file_exists($coreFile)) {
+        error_log("Found file in core directory: " . $coreFile);
+        require $coreFile;
         return true;
     }
     
-    error_log("Class file not found: " . $class . " (tried: " . $appFile . " and " . $httpdocsFile . ")");
+    // Check in app/Controllers directory
+    $controllerFile = APP_PATH . '/Controllers/' . basename($file);
+    error_log("Checking controller file: " . $controllerFile);
+    if (file_exists($controllerFile)) {
+        error_log("Found file in controllers directory: " . $controllerFile);
+        require $controllerFile;
+        return true;
+    }
+    
+    // Check in app/Models directory
+    $modelFile = APP_PATH . '/Models/' . basename($file);
+    error_log("Checking model file: " . $modelFile);
+    if (file_exists($modelFile)) {
+        error_log("Found file in models directory: " . $modelFile);
+        require $modelFile;
+        return true;
+    }
+    
+    // Check in app/Services directory
+    $serviceFile = APP_PATH . '/Services/' . basename($file);
+    error_log("Checking service file: " . $serviceFile);
+    if (file_exists($serviceFile)) {
+        error_log("Found file in services directory: " . $serviceFile);
+        require $serviceFile;
+        return true;
+    }
+    
+    // Check in app/Core/Controller directory
+    $coreControllerFile = APP_PATH . '/Core/Controller/' . basename($file);
+    error_log("Checking core controller file: " . $coreControllerFile);
+    if (file_exists($coreControllerFile)) {
+        error_log("Found file in core controller directory: " . $coreControllerFile);
+        require $coreControllerFile;
+        return true;
+    }
+    
+    // Check in app/Core/models directory
+    $coreModelFile = APP_PATH . '/Core/models/' . basename($file);
+    error_log("Checking core model file: " . $coreModelFile);
+    if (file_exists($coreModelFile)) {
+        error_log("Found file in core models directory: " . $coreModelFile);
+        require $coreModelFile;
+        return true;
+    }
+    
+    error_log("Class file not found: " . $class . " (tried: " . $appFile . ", " . $coreFile . ", " . $controllerFile . ", " . $modelFile . ", " . $serviceFile . ", " . $coreControllerFile . ", and " . $coreModelFile . ")");
     return false;
 });
-
-// Load configuration
-$configFile = CONFIG_PATH . '/config.php';
-error_log("Loading config file: " . $configFile);
-if (!file_exists($configFile)) {
-    throw new Exception("Configuration file not found at: " . $configFile);
-}
-require_once $configFile;
 
 // Initialize database connection
 try {
