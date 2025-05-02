@@ -4,7 +4,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-echo "<h2>Plesk PostgreSQL Connection Test</h2>";
+echo "<h2>Plesk Database Connection Test</h2>";
 
 // Load configuration
 $config = require_once 'config/config.php';
@@ -15,11 +15,12 @@ echo "Database: " . $config['DB_NAME'] . "<br>";
 echo "User: " . $config['DB_USER'] . "<br>";
 
 try {
-    // Connect to PostgreSQL
-    $dsn = "pgsql:host={$config['DB_HOST']};dbname={$config['DB_NAME']}";
+    // Connect to MySQL
+    $dsn = "mysql:host={$config['DB_HOST']};dbname={$config['DB_NAME']};charset=utf8mb4";
     $options = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_TIMEOUT => 5 // 5 second timeout
     ];
     
     echo "<h3>Attempting Connection:</h3>";
@@ -29,15 +30,15 @@ try {
     echo "<span style='color: green;'>Connection successful!</span><br>";
     
     // Test if we can query the database
-    $stmt = $pdo->query("SELECT version()");
+    $stmt = $pdo->query("SELECT VERSION()");
     $version = $stmt->fetchColumn();
-    echo "PostgreSQL version: $version<br>";
+    echo "MySQL version: $version<br>";
     
     // List all tables
-    $stmt = $pdo->query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+    $stmt = $pdo->query("SHOW TABLES");
     echo "<h3>Available Tables:</h3>";
     while ($row = $stmt->fetch()) {
-        echo "- " . $row['table_name'] . "<br>";
+        echo "- " . $row[0] . "<br>";
     }
     
 } catch (PDOException $e) {
@@ -50,5 +51,6 @@ try {
     echo "2. Check if the user has proper permissions<br>";
     echo "3. Verify the password is correct<br>";
     echo "4. Make sure the database is accessible from the web server<br>";
+    echo "5. Check if the hostname is correct and resolves properly<br>";
 }
 ?> 
