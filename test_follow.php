@@ -13,18 +13,7 @@ try {
     // First, check if follows table exists
     $stmt = $pdo->query("SHOW TABLES LIKE 'follows'");
     if ($stmt->rowCount() == 0) {
-        // Create follows table if it doesn't exist
-        $sql = "CREATE TABLE IF NOT EXISTS follows (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            follows_id INT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (follows_id) REFERENCES users(id) ON DELETE CASCADE,
-            UNIQUE KEY unique_follow (user_id, follows_id)
-        )";
-        $pdo->exec($sql);
-        echo "<p style='color: green;'>Follows table created successfully!</p>";
+        die("<p style='color: red;'>Follows table does not exist. Please run setup_follows_table.php first.</p>");
     }
 
     // Get two test users
@@ -45,7 +34,7 @@ try {
     // Test follow
     try {
         $stmt = $pdo->prepare("
-            INSERT INTO follows (user_id, follows_id)
+            INSERT INTO follows (follower_id, following_id)
             VALUES (?, ?)
         ");
         
@@ -67,9 +56,9 @@ try {
                follower.username as follower_username,
                following.username as following_username
         FROM follows f
-        JOIN users follower ON f.user_id = follower.id
-        JOIN users following ON f.follows_id = following.id
-        WHERE f.user_id = ? OR f.follows_id = ?
+        JOIN users follower ON f.follower_id = follower.id
+        JOIN users following ON f.following_id = following.id
+        WHERE f.follower_id = ? OR f.following_id = ?
         ORDER BY f.created_at DESC
     ");
     
