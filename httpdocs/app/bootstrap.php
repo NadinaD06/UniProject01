@@ -6,7 +6,7 @@
 // Define base paths
 define('ROOT_PATH', dirname(dirname(__DIR__))); // Go up one more level to handle double httpdocs
 define('APP_PATH', dirname(__FILE__));
-define('CONFIG_PATH', dirname(ROOT_PATH) . '/config'); // Remove httpdocs from path
+define('CONFIG_PATH', dirname(ROOT_PATH) . '/httpdocs/config'); // Point to httpdocs/config
 define('PUBLIC_PATH', ROOT_PATH);
 define('UPLOAD_PATH', PUBLIC_PATH . '/uploads');
 
