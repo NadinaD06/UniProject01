@@ -25,7 +25,7 @@ abstract class Controller {
      * Initializes common resources
      */
     public function __construct(\PDO $db) {
-        $this->config = require __DIR__ . '/../config/config.php';
+        $this->config = require CONFIG_PATH . '/config.php';
         $this->db = $db;
         $this->pdo = $db;
         $this->auth = new AuthService();
