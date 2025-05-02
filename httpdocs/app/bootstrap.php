@@ -21,7 +21,11 @@ error_log("Loading config file: " . $configFile);
 if (!file_exists($configFile)) {
     throw new Exception("Configuration file not found at: " . $configFile);
 }
-require_once $configFile;
+
+// Only load config if constants are not already defined
+if (!defined('DB_HOST')) {
+    require_once $configFile;
+}
 
 // Start session after loading config
 if (session_status() === PHP_SESSION_NONE) {
@@ -57,6 +61,15 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
+    // Check in app/Services directory
+    $serviceFile = APP_PATH . '/Services/' . basename($file);
+    error_log("Checking service file: " . $serviceFile);
+    if (file_exists($serviceFile)) {
+        error_log("Found file in services directory: " . $serviceFile);
+        require $serviceFile;
+        return true;
+    }
+    
     // Check in app/Core directory
     $coreFile = APP_PATH . '/Core/' . basename($file);
     error_log("Checking core file: " . $coreFile);
@@ -72,15 +85,6 @@ spl_autoload_register(function ($class) {
     if (file_exists($modelFile)) {
         error_log("Found file in models directory: " . $modelFile);
         require $modelFile;
-        return true;
-    }
-    
-    // Check in app/Services directory
-    $serviceFile = APP_PATH . '/Services/' . basename($file);
-    error_log("Checking service file: " . $serviceFile);
-    if (file_exists($serviceFile)) {
-        error_log("Found file in services directory: " . $serviceFile);
-        require $serviceFile;
         return true;
     }
     
@@ -102,7 +106,7 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
-    error_log("Class file not found: " . $class . " (tried: " . $appFile . ", " . $controllerFile . ", " . $coreFile . ", " . $modelFile . ", " . $serviceFile . ", " . $coreControllerFile . ", and " . $coreModelFile . ")");
+    error_log("Class file not found: " . $class . " (tried: " . $appFile . ", " . $controllerFile . ", " . $serviceFile . ", " . $coreFile . ", " . $modelFile . ", " . $coreControllerFile . ", and " . $coreModelFile . ")");
     return false;
 });
 
