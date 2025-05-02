@@ -39,8 +39,8 @@ set_exception_handler(function($e) {
 });
 
 try {
-    // Define base path
-    define('BASE_PATH', dirname(__DIR__));
+    // Define base path - adjust for Plesk's httpdocs directory
+    define('BASE_PATH', dirname(dirname(__FILE__)));
     
     // Log the bootstrap file path
     $bootstrapFile = BASE_PATH . '/app/bootstrap.php';
