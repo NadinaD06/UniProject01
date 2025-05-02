@@ -29,7 +29,7 @@ spl_autoload_register(function ($class) {
     error_log("Attempting to load class: " . $class);
     error_log("Looking for file: " . $file);
     
-    // Check in app directory first
+    // Check in app directory
     $appFile = APP_PATH . '/' . $file;
     error_log("Checking app file: " . $appFile);
     if (file_exists($appFile)) {
@@ -38,25 +38,16 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
-    // Check in Core directory specifically
-    $coreFile = APP_PATH . '/Core/' . basename($file);
-    error_log("Checking core file: " . $coreFile);
-    if (file_exists($coreFile)) {
-        error_log("Found file in core directory: " . $coreFile);
-        require $coreFile;
+    // Check in httpdocs directory
+    $httpdocsFile = dirname(ROOT_PATH) . '/httpdocs/' . $file;
+    error_log("Checking httpdocs file: " . $httpdocsFile);
+    if (file_exists($httpdocsFile)) {
+        error_log("Found file in httpdocs directory: " . $httpdocsFile);
+        require $httpdocsFile;
         return true;
     }
     
-    // Check in root directory
-    $rootFile = ROOT_PATH . '/' . $file;
-    error_log("Checking root file: " . $rootFile);
-    if (file_exists($rootFile)) {
-        error_log("Found file in root directory: " . $rootFile);
-        require $rootFile;
-        return true;
-    }
-    
-    error_log("Class file not found: " . $class . " (tried: " . $appFile . ", " . $coreFile . ", and " . $rootFile . ")");
+    error_log("Class file not found: " . $class . " (tried: " . $appFile . " and " . $httpdocsFile . ")");
     return false;
 });
 
