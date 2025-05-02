@@ -9,14 +9,16 @@ abstract class Controller {
     protected $config;
     protected $db;
     protected $session;
+    protected $pdo;
 
     /**
      * Constructor
      * Initializes common resources
      */
-    public function __construct() {
+    public function __construct($pdo = null) {
         $this->config = require __DIR__ . '/../config/config.php';
         $this->db = Database::getInstance();
+        $this->pdo = $pdo ?? $this->db->getConnection();
         $this->startSession();
     }
 

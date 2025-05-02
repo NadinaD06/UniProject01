@@ -14,8 +14,8 @@ class AuthController extends Controller {
     private $user;
     private $authService;
     
-    public function __construct() {
-        parent::__construct();
+    public function __construct($pdo = null) {
+        parent::__construct($pdo);
         $this->user = new User($this->pdo);
         $this->authService = new AuthService();
     }

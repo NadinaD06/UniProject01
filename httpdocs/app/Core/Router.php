@@ -3,10 +3,10 @@ namespace App\Core;
 
 class Router {
     private $routes = [];
-    private $db;
+    private $pdo;
 
-    public function __construct($db) {
-        $this->db = $db;
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
     }
 
     public function get($path, $callback) {
@@ -49,7 +49,7 @@ class Router {
                 if (is_array($route['callback'])) {
                     [$controller, $action] = $route['callback'];
                     $controller = "App\\Controllers\\{$controller}";
-                    $controller = new $controller($this->db);
+                    $controller = new $controller($this->pdo);
                     $response = call_user_func_array([$controller, $action], $matches);
                     
                     // Handle the response
