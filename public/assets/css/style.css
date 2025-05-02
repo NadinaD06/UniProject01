@@ -138,21 +138,54 @@ a:hover {
 
 /* Notifications */
 .list-group-item {
+    padding: 1rem;
     border-left: none;
     border-right: none;
-    padding: 1rem;
+    transition: background-color 0.2s ease;
 }
 
 .list-group-item:first-child {
     border-top: none;
 }
 
-.list-group-item:last-child {
-    border-bottom: none;
-}
-
 .list-group-item:hover {
     background-color: #f8f9fa;
+}
+
+.list-group-item .btn {
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.list-group-item:hover .btn {
+    opacity: 1;
+}
+
+.list-group-item img {
+    object-fit: cover;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.list-group-item h6 {
+    font-weight: 600;
+}
+
+.list-group-item small {
+    font-size: 0.875rem;
+}
+
+.text-center.text-muted {
+    padding: 3rem 1rem;
+}
+
+.text-center.text-muted i {
+    color: #dee2e6;
+}
+
+.text-center.text-muted p {
+    margin-top: 1rem;
+    font-size: 1.1rem;
 }
 
 .notification-icon {
