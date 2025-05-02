@@ -8,6 +8,7 @@ use App\Controllers\UserController;
 use App\Controllers\AdminController;
 use App\Controllers\MessageController;
 use App\Controllers\NotificationController;
+use App\Controllers\ReportController;
 
 // Post routes
 $router->post('/api/posts/create', [PostController::class, 'create']);
@@ -41,4 +42,11 @@ $router->post('/api/notifications/delete-old', [NotificationController::class, '
 $router->get('/api/admin/stats/posts', [AdminController::class, 'postStats']);
 $router->get('/api/admin/stats/reports', [AdminController::class, 'reportStats']);
 $router->post('/api/admin/users/delete', [AdminController::class, 'deleteUser']);
-$router->post('/api/admin/reports/handle', [AdminController::class, 'handleReport']); 
+$router->post('/api/admin/reports/handle', [AdminController::class, 'handleReport']);
+
+// Report routes
+$router->post('/reports', [ReportController::class, 'create']);
+$router->get('/reports', [ReportController::class, 'index']);
+$router->post('/reports/update', [ReportController::class, 'update']);
+$router->get('/reports/stats', [ReportController::class, 'stats']);
+$router->get('/reports/user', [ReportController::class, 'userReports']); 

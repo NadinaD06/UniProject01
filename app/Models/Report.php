@@ -1,171 +1,155 @@
 <?php
 /**
  * Report Model
- * Handles user reporting functionality
+ * Handles report-related operations
  */
 namespace App\Models;
 
 class Report extends Model {
     protected $table = 'reports';
-    protected $fillable = [
-        'reporter_id',
-        'reported_id',
-        'reason',
-        'details',
-        'status',
-        'admin_action',
-        'admin_notes'
-    ];
-
-    // Report statuses
-    const STATUS_PENDING = 'pending';
-    const STATUS_REVIEWED = 'reviewed';
-    const STATUS_RESOLVED = 'resolved';
-
-    // Admin actions
-    const ACTION_BLOCK = 'block_user';
-    const ACTION_DELETE = 'delete_user';
-    const ACTION_REQUEST_ID = 'request_id';
-    const ACTION_NO_ACTION = 'no_action';
+    protected $fillable = ['reporter_id', 'reported_user_id', 'reason', 'status', 'admin_action', 'action_date'];
 
     /**
      * Create a new report
-     * @param int $reporterId User making the report
-     * @param int $reportedId User being reported
-     * @param string $reason Report reason
-     * @param string $details Additional details
+     * @param int $reporterId User ID of the reporter
+     * @param int $reportedUserId User ID of the reported user
+     * @param string $reason Reason for the report
      * @return int|bool Report ID or false on failure
      */
-    public function createReport($reporterId, $reportedId, $reason, $details = null) {
-        return $this->create([
-            'reporter_id' => $reporterId,
-            'reported_id' => $reportedId,
-            'reason' => $reason,
-            'details' => $details,
-            'status' => self::STATUS_PENDING
-        ]);
+    public function createReport($reporterId, $reportedUserId, $reason) {
+        try {
+            $sql = "INSERT INTO {$this->table} (reporter_id, reported_user_id, reason) VALUES (?, ?, ?)";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$reporterId, $reportedUserId, $reason]);
+            
+            return $this->db->lastInsertId();
+        } catch (\PDOException $e) {
+            error_log("Error creating report: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get all reports with pagination
+     * @param int $page Page number
+     * @param int $perPage Reports per page
+     * @return array Reports with pagination info
+     */
+    public function getAllReports($page = 1, $perPage = 10) {
+        try {
+            $offset = ($page - 1) * $perPage;
+
+            $reports = $this->db->fetchAll(
+                "SELECT r.*, 
+                        u1.username as reporter_username,
+                        u2.username as reported_username
+                FROM {$this->table} r
+                JOIN users u1 ON r.reporter_id = u1.id
+                JOIN users u2 ON r.reported_user_id = u2.id
+                ORDER BY r.created_at DESC
+                LIMIT ? OFFSET ?",
+                [$perPage, $offset]
+            );
+
+            $total = $this->db->fetch(
+                "SELECT COUNT(*) as count FROM {$this->table}"
+            )['count'];
+
+            return [
+                'data' => $reports,
+                'total' => $total,
+                'per_page' => $perPage,
+                'current_page' => $page,
+                'last_page' => ceil($total / $perPage)
+            ];
+        } catch (\PDOException $e) {
+            error_log("Error getting reports: " . $e->getMessage());
+            return [
+                'data' => [],
+                'total' => 0,
+                'per_page' => $perPage,
+                'current_page' => $page,
+                'last_page' => 1
+            ];
+        }
     }
 
     /**
      * Update report status and admin action
      * @param int $reportId Report ID
      * @param string $status New status
-     * @param string $action Admin action
-     * @param string $notes Admin notes
+     * @param string $adminAction Admin's action
      * @return bool Success status
      */
-    public function updateReport($reportId, $status, $action = null, $notes = null) {
-        return (bool) $this->update($reportId, [
-            'status' => $status,
-            'admin_action' => $action,
-            'admin_notes' => $notes
-        ]);
+    public function updateReport($reportId, $status, $adminAction = null) {
+        try {
+            $sql = "UPDATE {$this->table} 
+                    SET status = ?, 
+                        admin_action = ?, 
+                        action_date = CURRENT_TIMESTAMP 
+                    WHERE id = ?";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([$status, $adminAction, $reportId]);
+        } catch (\PDOException $e) {
+            error_log("Error updating report: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
-     * Get all pending reports
-     * @param int $page Page number
-     * @param int $perPage Reports per page
-     * @return array
-     */
-    public function getPendingReports($page = 1, $perPage = 20) {
-        return $this->getReportsByStatus(self::STATUS_PENDING, $page, $perPage);
-    }
-
-    /**
-     * Get reports by status
-     * @param string $status Report status
-     * @param int $page Page number
-     * @param int $perPage Reports per page
-     * @return array
-     */
-    public function getReportsByStatus($status, $page = 1, $perPage = 20) {
-        $offset = ($page - 1) * $perPage;
-
-        $reports = $this->db->fetchAll(
-            "SELECT r.*,
-                reporter.username as reporter_username,
-                reported.username as reported_username
-            FROM {$this->table} r
-            JOIN users reporter ON r.reporter_id = reporter.id
-            JOIN users reported ON r.reported_id = reported.id
-            WHERE r.status = ?
-            ORDER BY r.created_at DESC
-            LIMIT ? OFFSET ?",
-            [$status, $perPage, $offset]
-        );
-
-        $total = $this->db->fetch(
-            "SELECT COUNT(*) as count FROM {$this->table} WHERE status = ?",
-            [$status]
-        )['count'];
-
-        return [
-            'data' => $reports,
-            'total' => $total,
-            'per_page' => $perPage,
-            'current_page' => $page,
-            'last_page' => ceil($total / $perPage)
-        ];
-    }
-
-    /**
-     * Get reports statistics
-     * @param string $period 'week'|'month'|'year'
-     * @return array
-     */
-    public function getStats($period = 'week') {
-        $intervals = [
-            'week' => '7 DAY',
-            'month' => '1 MONTH',
-            'year' => '1 YEAR'
-        ];
-
-        $interval = $intervals[$period] ?? '7 DAY';
-
-        return $this->db->fetchAll("
-            SELECT 
-                DATE(created_at) as date,
-                COUNT(*) as report_count,
-                COUNT(DISTINCT reporter_id) as reporter_count,
-                COUNT(DISTINCT reported_id) as reported_count,
-                COUNT(CASE WHEN status = 'resolved' THEN 1 END) as resolved_count
-            FROM {$this->table}
-            WHERE created_at >= DATE_SUB(CURRENT_DATE, INTERVAL {$interval})
-            GROUP BY DATE(created_at)
-            ORDER BY date DESC
-        ");
-    }
-
-    /**
-     * Get reports made by a user
+     * Get reports for a specific user
      * @param int $userId User ID
-     * @return array
+     * @return array List of reports
      */
-    public function getReportsByUser($userId) {
-        return $this->db->fetchAll(
-            "SELECT r.*, u.username as reported_username
-            FROM {$this->table} r
-            JOIN users u ON r.reported_id = u.id
-            WHERE r.reporter_id = ?
-            ORDER BY r.created_at DESC",
-            [$userId]
-        );
+    public function getUserReports($userId) {
+        try {
+            $sql = "SELECT r.*, u.username as reporter_username
+                    FROM {$this->table} r
+                    JOIN users u ON r.reporter_id = u.id
+                    WHERE r.reported_user_id = ?
+                    ORDER BY r.created_at DESC";
+            
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll();
+        } catch (\PDOException $e) {
+            error_log("Error getting user reports: " . $e->getMessage());
+            return [];
+        }
     }
 
     /**
-     * Get reports against a user
-     * @param int $userId User ID
-     * @return array
+     * Get report statistics
+     * @param string $period Period to get stats for (week/month/year)
+     * @return array Report statistics
      */
-    public function getReportsAgainstUser($userId) {
-        return $this->db->fetchAll(
-            "SELECT r.*, u.username as reporter_username
-            FROM {$this->table} r
-            JOIN users u ON r.reporter_id = u.id
-            WHERE r.reported_id = ?
-            ORDER BY r.created_at DESC",
-            [$userId]
-        );
+    public function getReportStats($period = 'month') {
+        try {
+            $dateFormat = '%Y-%m'; // Default to monthly
+            switch ($period) {
+                case 'week':
+                    $dateFormat = '%Y-%u';
+                    break;
+                case 'year':
+                    $dateFormat = '%Y';
+                    break;
+            }
+
+            $sql = "SELECT 
+                        DATE_FORMAT(created_at, ?) as period,
+                        COUNT(*) as total_reports,
+                        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_reports,
+                        SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved_reports
+                    FROM {$this->table}
+                    GROUP BY period
+                    ORDER BY period DESC";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$dateFormat]);
+            return $stmt->fetchAll();
+        } catch (\PDOException $e) {
+            error_log("Error getting report stats: " . $e->getMessage());
+            return [];
+        }
     }
 } 
