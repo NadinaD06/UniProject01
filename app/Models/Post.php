@@ -1,7 +1,7 @@
 <?php
 /**
  * Post Model
- * Handles post-related database operations
+ * Handles post-related operations including creation, retrieval, and interaction
  */
 namespace App\Models;
 
@@ -10,28 +10,55 @@ class Post extends Model {
     protected $fillable = [
         'user_id',
         'content',
-        'image_url',
-        'location_name',
-        'latitude',
-        'longitude'
+        'image_path',
+        'location_lat',
+        'location_lng',
+        'location_name'
     ];
 
     /**
-     * Get post with user details
-     * @param int $postId Post ID
-     * @return array|false
+     * Create a new post
+     * @param array $data Post data
+     * @return int|bool Post ID or false on failure
      */
-    public function getWithUser($postId) {
-        return $this->db->fetch("
-            SELECT p.*, u.username, u.email
-            FROM {$this->table} p
-            JOIN users u ON p.user_id = u.id
-            WHERE p.id = ?
-        ", [$postId]);
+    public function createPost($data) {
+        return $this->create($data);
     }
 
     /**
-     * Get posts for user's feed
+     * Get a post with its author and interaction data
+     * @param int $postId Post ID
+     * @param int $currentUserId Current user ID for interaction data
+     * @return array|bool Post data or false if not found
+     */
+    public function getPost($postId, $currentUserId = null) {
+        $post = $this->db->fetch(
+            "SELECT p.*, u.username, u.profile_image,
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
+                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
+            FROM {$this->table} p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.id = ?",
+            [$postId]
+        );
+
+        if (!$post) {
+            return false;
+        }
+
+        // Add current user's interaction data if user is logged in
+        if ($currentUserId) {
+            $post['is_liked'] = (bool) $this->db->fetch(
+                "SELECT 1 FROM likes WHERE post_id = ? AND user_id = ?",
+                [$postId, $currentUserId]
+            );
+        }
+
+        return $post;
+    }
+
+    /**
+     * Get posts for a user's feed
      * @param int $userId User ID
      * @param int $page Page number
      * @param int $perPage Posts per page
@@ -40,27 +67,28 @@ class Post extends Model {
     public function getFeed($userId, $page = 1, $perPage = 10) {
         $offset = ($page - 1) * $perPage;
 
-        $posts = $this->db->fetchAll("
-            SELECT 
-                p.*,
-                u.username,
+        $posts = $this->db->fetchAll(
+            "SELECT p.*, u.username, u.profile_image,
                 (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
                 (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
-                EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ?) as is_liked
+                (SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ?) as is_liked
             FROM {$this->table} p
             JOIN users u ON p.user_id = u.id
-            WHERE p.user_id = ?
-                OR p.user_id IN (SELECT follows_id FROM follows WHERE user_id = ?)
+            WHERE p.user_id = ? OR p.user_id IN (
+                SELECT followed_id FROM follows WHERE follower_id = ?
+            )
             ORDER BY p.created_at DESC
-            LIMIT ? OFFSET ?
-        ", [$userId, $userId, $userId, $perPage, $offset]);
+            LIMIT ? OFFSET ?",
+            [$userId, $userId, $userId, $perPage, $offset]
+        );
 
-        $total = $this->db->fetch("
-            SELECT COUNT(*) as count
-            FROM {$this->table} p
-            WHERE p.user_id = ?
-                OR p.user_id IN (SELECT follows_id FROM follows WHERE user_id = ?)
-        ", [$userId, $userId])['count'];
+        $total = $this->db->fetch(
+            "SELECT COUNT(*) as count FROM {$this->table} p
+            WHERE p.user_id = ? OR p.user_id IN (
+                SELECT followed_id FROM follows WHERE follower_id = ?
+            )",
+            [$userId, $userId]
+        )['count'];
 
         return [
             'data' => $posts,
@@ -72,171 +100,43 @@ class Post extends Model {
     }
 
     /**
-     * Create new post
-     * @param array $data Post data
-     * @param array $file Optional image file
-     * @return int Post ID
-     */
-    public function createPost($data, $file = null) {
-        if ($file && $file['error'] === UPLOAD_ERR_OK) {
-            $config = require __DIR__ . '/../config/config.php';
-            $uploadDir = $config['upload']['directory'];
-            $allowedTypes = $config['upload']['allowed_types'];
-            $maxSize = $config['upload']['max_size'];
-
-            // Validate file
-            $fileInfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mimeType = finfo_file($fileInfo, $file['tmp_name']);
-            $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-
-            if ($file['size'] > $maxSize) {
-                throw new Exception('File size exceeds limit');
-            }
-
-            if (!in_array($extension, $allowedTypes)) {
-                throw new Exception('Invalid file type');
-            }
-
-            // Generate unique filename
-            $filename = uniqid() . '.' . $extension;
-            $filepath = $uploadDir . $filename;
-
-            // Move uploaded file
-            if (!move_uploaded_file($file['tmp_name'], $filepath)) {
-                throw new Exception('Failed to move uploaded file');
-            }
-
-            $data['image_url'] = $filename;
-        }
-
-        return $this->create($data);
-    }
-
-    /**
-     * Like a post
-     * @param int $postId Post ID
+     * Get posts by a specific user
      * @param int $userId User ID
-     * @return bool
-     */
-    public function like($postId, $userId) {
-        try {
-            $this->db->insert('likes', [
-                'post_id' => $postId,
-                'user_id' => $userId
-            ]);
-            return true;
-        } catch (PDOException $e) {
-            // Ignore duplicate entry errors
-            if ($e->getCode() !== '23000') {
-                throw $e;
-            }
-            return false;
-        }
-    }
-
-    /**
-     * Unlike a post
-     * @param int $postId Post ID
-     * @param int $userId User ID
-     * @return bool
-     */
-    public function unlike($postId, $userId) {
-        return (bool) $this->db->delete(
-            'likes',
-            'post_id = ? AND user_id = ?',
-            [$postId, $userId]
-        );
-    }
-
-    /**
-     * Add comment to post
-     * @param int $postId Post ID
-     * @param int $userId User ID
-     * @param string $content Comment content
-     * @return int Comment ID
-     */
-    public function addComment($postId, $userId, $content) {
-        return $this->db->insert('comments', [
-            'post_id' => $postId,
-            'user_id' => $userId,
-            'content' => $content
-        ]);
-    }
-
-    /**
-     * Get post comments
-     * @param int $postId Post ID
-     * @param int $page Page number
-     * @param int $perPage Comments per page
-     * @return array
-     */
-    public function getComments($postId, $page = 1, $perPage = 20) {
-        $offset = ($page - 1) * $perPage;
-
-        $comments = $this->db->fetchAll("
-            SELECT c.*, u.username
-            FROM comments c
-            JOIN users u ON c.user_id = u.id
-            WHERE c.post_id = ?
-            ORDER BY c.created_at DESC
-            LIMIT ? OFFSET ?
-        ", [$postId, $perPage, $offset]);
-
-        $total = $this->db->fetch("
-            SELECT COUNT(*) as count
-            FROM comments
-            WHERE post_id = ?
-        ", [$postId])['count'];
-
-        return [
-            'data' => $comments,
-            'total' => $total,
-            'per_page' => $perPage,
-            'current_page' => $page,
-            'last_page' => ceil($total / $perPage)
-        ];
-    }
-
-    /**
-     * Get posts by location
-     * @param float $lat Latitude
-     * @param float $lng Longitude
-     * @param float $radius Radius in kilometers
      * @param int $page Page number
      * @param int $perPage Posts per page
      * @return array
      */
-    public function getByLocation($lat, $lng, $radius = 10, $page = 1, $perPage = 10) {
+    public function getUserPosts($userId, $page = 1, $perPage = 10) {
         $offset = ($page - 1) * $perPage;
 
-        // Haversine formula to calculate distance
-        $posts = $this->db->fetchAll("
-            SELECT 
-                p.*,
-                u.username,
-                (
-                    6371 * acos(
-                        cos(radians(?)) * cos(radians(latitude)) *
-                        cos(radians(longitude) - radians(?)) +
-                        sin(radians(?)) * sin(radians(latitude))
-                    )
-                ) AS distance
+        $posts = $this->db->fetchAll(
+            "SELECT p.*, u.username, u.profile_image,
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
+                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
             FROM {$this->table} p
             JOIN users u ON p.user_id = u.id
-            HAVING distance < ?
-            ORDER BY distance
-            LIMIT ? OFFSET ?
-        ", [$lat, $lng, $lat, $radius, $perPage, $offset]);
+            WHERE p.user_id = ?
+            ORDER BY p.created_at DESC
+            LIMIT ? OFFSET ?",
+            [$userId, $perPage, $offset]
+        );
+
+        $total = $this->db->fetch(
+            "SELECT COUNT(*) as count FROM {$this->table} WHERE user_id = ?",
+            [$userId]
+        )['count'];
 
         return [
             'data' => $posts,
+            'total' => $total,
             'per_page' => $perPage,
-            'current_page' => $page
+            'current_page' => $page,
+            'last_page' => ceil($total / $perPage)
         ];
     }
 
     /**
-     * Get post statistics for admin
+     * Get post statistics
      * @param string $period 'week'|'month'|'year'
      * @return array
      */
@@ -253,11 +153,29 @@ class Post extends Model {
             SELECT 
                 DATE(created_at) as date,
                 COUNT(*) as post_count,
-                COUNT(DISTINCT user_id) as user_count
+                COUNT(DISTINCT user_id) as user_count,
+                COUNT(CASE WHEN image_path IS NOT NULL THEN 1 END) as image_count,
+                COUNT(CASE WHEN location_lat IS NOT NULL THEN 1 END) as location_count
             FROM {$this->table}
             WHERE created_at >= DATE_SUB(CURRENT_DATE, INTERVAL {$interval})
             GROUP BY DATE(created_at)
             ORDER BY date DESC
         ");
+    }
+
+    /**
+     * Delete a post
+     * @param int $postId Post ID
+     * @param int $userId User ID (for verification)
+     * @return bool Success status
+     */
+    public function deletePost($postId, $userId) {
+        // Verify post ownership
+        $post = $this->find($postId);
+        if (!$post || $post['user_id'] !== $userId) {
+            return false;
+        }
+
+        return (bool) $this->delete($postId);
     }
 } 
