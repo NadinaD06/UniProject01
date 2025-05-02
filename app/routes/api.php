@@ -6,6 +6,7 @@
 use App\Controllers\PostController;
 use App\Controllers\UserController;
 use App\Controllers\AdminController;
+use App\Controllers\MessageController;
 
 // Post routes
 $router->post('/api/posts/create', [PostController::class, 'create']);
@@ -23,6 +24,12 @@ $router->post('/api/users/unblock', [UserController::class, 'unblock']);
 $router->post('/api/users/report', [UserController::class, 'report']);
 $router->get('/api/users/blocked', [UserController::class, 'blockedUsers']);
 $router->get('/api/users/reports', [UserController::class, 'reports']);
+
+// Message routes
+$router->get('/api/messages/conversations', [MessageController::class, 'index']);
+$router->get('/api/messages/conversation/{id}', [MessageController::class, 'show']);
+$router->post('/api/messages/send', [MessageController::class, 'send']);
+$router->get('/api/messages/unread-count', [MessageController::class, 'unreadCount']);
 
 // Admin routes
 $router->get('/api/admin/stats/posts', [AdminController::class, 'postStats']);

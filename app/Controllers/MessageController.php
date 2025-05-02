@@ -12,14 +12,14 @@ use App\Models\User;
 use App\Services\WebSocketService;
 
 class MessageController extends Controller {
-    private $message;
-    private $user;
+    private $messageModel;
+    private $userModel;
     private $webSocket;
     
-    public function __construct($pdo) {
-        parent::__construct($pdo);
-        $this->message = new Message($pdo);
-        $this->user = new User($pdo);
+    public function __construct() {
+        parent::__construct();
+        $this->messageModel = new Message();
+        $this->userModel = new User();
         
         // Initialize WebSocket service if WebSockets are enabled
         if (defined('WEBSOCKET_ENABLED') && WEBSOCKET_ENABLED) {
@@ -33,14 +33,18 @@ class MessageController extends Controller {
      * @return string Rendered view
      */
     public function index() {
-        if (!isset($_SESSION['user_id'])) {
-            $this->redirect('/login');
-        }
+        $this->requireLogin();
         
-        $conversations = $this->message->getConversations($_SESSION['user_id']);
+        $page = (int) $this->get('page', 1);
+        $perPage = $this->config['pagination']['messages_per_page'];
+        $userId = $this->getCurrentUserId();
         
-        $this->view('messages/index', [
-            'conversations' => $conversations
+        // Get user's conversations
+        $conversations = $this->messageModel->getUserConversations($userId, $page, $perPage);
+        
+        $this->render('messages/index', [
+            'conversations' => $conversations,
+            'user' => $this->userModel->find($userId)
         ]);
     }
     
@@ -49,39 +53,35 @@ class MessageController extends Controller {
      * 
      * @return string Rendered view
      */
-    public function conversation($username) {
-        if (!isset($_SESSION['user_id'])) {
-            $this->redirect('/login');
-        }
+    public function show() {
+        $this->requireLogin();
         
-        $user = $this->user->findByUsername($username);
-        if (!$user) {
+        $otherUserId = (int) $this->get('id');
+        if (!$otherUserId) {
             $this->redirect('/messages');
         }
         
-        $page = $this->getQuery('page', 1);
-        $limit = 20;
-        $offset = ($page - 1) * $limit;
-        
-        $messages = $this->message->getConversation(
-            $_SESSION['user_id'],
-            $user['id'],
-            $limit,
-            $offset
-        );
-        
-        // Mark messages as read
-        foreach ($messages as $message) {
-            if ($message['receiver_id'] == $_SESSION['user_id'] && !$message['read_at']) {
-                $this->message->markAsRead($message['id']);
-            }
+        // Check if other user exists
+        $otherUser = $this->userModel->find($otherUserId);
+        if (!$otherUser) {
+            $this->setFlash('error', 'User not found.');
+            $this->redirect('/messages');
         }
         
-        $this->view('messages/conversation', [
-            'user' => $user,
-            'messages' => $messages,
-            'page' => $page,
-            'hasMore' => count($messages) === $limit
+        $page = (int) $this->get('page', 1);
+        $perPage = $this->config['pagination']['messages_per_page'];
+        $userId = $this->getCurrentUserId();
+        
+        // Get conversation
+        $conversation = $this->messageModel->getConversation($userId, $otherUserId, $page, $perPage);
+        
+        // Mark messages as read
+        $this->messageModel->markAsRead($otherUserId, $userId);
+        
+        $this->render('messages/show', [
+            'conversation' => $conversation,
+            'otherUser' => $otherUser,
+            'user' => $this->userModel->find($userId)
         ]);
     }
     
@@ -91,37 +91,46 @@ class MessageController extends Controller {
      * @return void JSON response
      */
     public function send() {
-        if (!$this->isPost()) {
-            $this->redirect('/messages');
+        $this->requireLogin();
+        
+        if (!$this->post()) {
+            $this->json(['error' => 'Invalid request.'], 400);
         }
         
-        $receiverId = $this->getPost('receiver_id');
-        $content = $this->getPost('content');
+        $receiverId = (int) $this->post('receiver_id');
+        $content = $this->post('content');
         
-        if (empty($content)) {
-            $this->json([
-                'success' => false,
-                'message' => 'Message cannot be empty'
-            ]);
-            return;
+        // Validate input
+        $errors = $this->validate(
+            ['content' => $content],
+            ['content' => 'required|max:1000']
+        );
+        
+        if (!empty($errors)) {
+            $this->json(['error' => 'Please enter a valid message.'], 400);
         }
         
-        $data = [
-            'sender_id' => $_SESSION['user_id'],
-            'receiver_id' => $receiverId,
-            'content' => $content
-        ];
-        
-        if ($this->message->send($data)) {
-            $this->json([
-                'success' => true,
-                'message' => 'Message sent successfully'
-            ]);
-        } else {
-            $this->json([
-                'success' => false,
-                'message' => 'Failed to send message'
-            ]);
+        try {
+            $messageId = $this->messageModel->sendMessage(
+                $this->getCurrentUserId(),
+                $receiverId,
+                $content
+            );
+            
+            if ($messageId) {
+                $this->json([
+                    'success' => true,
+                    'message' => [
+                        'id' => $messageId,
+                        'content' => $content,
+                        'created_at' => date('Y-m-d H:i:s')
+                    ]
+                ]);
+            } else {
+                $this->json(['error' => 'Failed to send message.'], 500);
+            }
+        } catch (\Exception $e) {
+            $this->json(['error' => 'An error occurred.'], 500);
         }
     }
     
@@ -149,14 +158,14 @@ class MessageController extends Controller {
         $offset = (int)$data['offset'];
         
         // Validate other user exists
-        $otherUser = $this->user->find($otherUserId);
+        $otherUser = $this->userModel->find($otherUserId);
         
         if (!$otherUser) {
             return $this->error('User not found');
         }
         
         // Get messages
-        $messages = $this->message->getConversation($userId, $otherUserId, 20, $offset);
+        $messages = $this->messageModel->getConversation($userId, $otherUserId, 20, $offset);
         
         // Format messages
         $formattedMessages = [];
@@ -194,7 +203,7 @@ class MessageController extends Controller {
         $query = trim($data['q']);
         
         // Search users
-        $users = $this->message->searchUsers($userId, $query);
+        $users = $this->messageModel->searchUsers($userId, $query);
         
         return $this->success([
             'users' => $users
@@ -206,14 +215,15 @@ class MessageController extends Controller {
      * 
      * @return void JSON response
      */
-    public function getUnreadCount() {
-        if (!isset($_SESSION['user_id'])) {
-            $this->json(['count' => 0]);
-            return;
-        }
+    public function unreadCount() {
+        $this->requireLogin();
         
-        $count = $this->message->getUnreadCount($_SESSION['user_id']);
-        $this->json(['count' => $count]);
+        try {
+            $count = $this->messageModel->getUnreadCount($this->getCurrentUserId());
+            $this->json(['count' => $count]);
+        } catch (\Exception $e) {
+            $this->json(['error' => 'An error occurred.'], 500);
+        }
     }
     
     /**
@@ -273,7 +283,7 @@ class MessageController extends Controller {
         }
         
         // Get sender info
-        $sender = $this->user->find($message['sender_id']);
+        $sender = $this->userModel->find($message['sender_id']);
         
         if (!$sender) {
             return false;
