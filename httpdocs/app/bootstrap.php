@@ -4,10 +4,11 @@
  */
 
 // Define base paths
-define('ROOT_PATH', dirname(dirname(__DIR__))); // Go up one more level to handle double httpdocs
-define('APP_PATH', dirname(__FILE__));
-define('CONFIG_PATH', dirname(ROOT_PATH) . '/httpdocs/config'); // Point to httpdocs/config
-define('PUBLIC_PATH', ROOT_PATH);
+define('ROOT_PATH', dirname(__DIR__));
+define('APP_PATH', ROOT_PATH . '/app');
+define('CONFIG_PATH', dirname(ROOT_PATH) . '/config');
+define('VIEWS_PATH', APP_PATH . '/Views');
+define('PUBLIC_PATH', ROOT_PATH . '/public');
 define('UPLOAD_PATH', PUBLIC_PATH . '/uploads');
 
 // Log paths for debugging
@@ -24,7 +25,7 @@ if (!file_exists($configFile)) {
 
 // Only load config if constants are not already defined
 if (!defined('DB_HOST')) {
-    require_once $configFile;
+    $config = require $configFile;
 }
 
 // Start session after loading config
@@ -43,7 +44,7 @@ spl_autoload_register(function ($class) {
     error_log("Attempting to load class: " . $class);
     error_log("Looking for file: " . $file);
     
-    // Check in app directory
+    // Check in app directory first
     $appFile = APP_PATH . '/' . $file;
     error_log("Checking app file: " . $appFile);
     if (file_exists($appFile)) {
@@ -52,7 +53,7 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
-    // Check in app/Controllers directory first
+    // Check in Controllers directory
     $controllerFile = APP_PATH . '/Controllers/' . basename($file);
     error_log("Checking controller file: " . $controllerFile);
     if (file_exists($controllerFile)) {
@@ -61,7 +62,7 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
-    // Check in app/Services directory
+    // Check in Services directory
     $serviceFile = APP_PATH . '/Services/' . basename($file);
     error_log("Checking service file: " . $serviceFile);
     if (file_exists($serviceFile)) {
@@ -70,7 +71,7 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
-    // Check in app/Core directory
+    // Check in Core directory
     $coreFile = APP_PATH . '/Core/' . basename($file);
     error_log("Checking core file: " . $coreFile);
     if (file_exists($coreFile)) {
@@ -79,7 +80,7 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
-    // Check in app/Models directory
+    // Check in Models directory
     $modelFile = APP_PATH . '/Models/' . basename($file);
     error_log("Checking model file: " . $modelFile);
     if (file_exists($modelFile)) {
@@ -88,7 +89,7 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
-    // Check in app/Core/Controller directory
+    // Check in Core/Controller directory
     $coreControllerFile = APP_PATH . '/Core/Controller/' . basename($file);
     error_log("Checking core controller file: " . $coreControllerFile);
     if (file_exists($coreControllerFile)) {
@@ -97,7 +98,7 @@ spl_autoload_register(function ($class) {
         return true;
     }
     
-    // Check in app/Core/models directory
+    // Check in Core/models directory
     $coreModelFile = APP_PATH . '/Core/models/' . basename($file);
     error_log("Checking core model file: " . $coreModelFile);
     if (file_exists($coreModelFile)) {
@@ -114,10 +115,14 @@ spl_autoload_register(function ($class) {
 try {
     error_log("Attempting database connection to: " . DB_HOST . " with database: " . DB_NAME);
     $pdo = new PDO(
-        "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME,
+        "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
         DB_USER,
         DB_PASS,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false
+        ]
     );
     error_log("Database connection successful");
 } catch (PDOException $e) {
