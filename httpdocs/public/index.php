@@ -16,7 +16,7 @@ require_once BASE_PATH . '/app/bootstrap.php';
 session_start();
 
 // Get the request URI
-$request_uri = $_SERVER['REQUEST_URI'];
+$request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 // Basic routing
 switch ($request_uri) {
