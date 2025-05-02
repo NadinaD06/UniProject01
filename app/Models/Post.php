@@ -18,11 +18,27 @@ class Post extends Model {
 
     /**
      * Create a new post
-     * @param array $data Post data
+     * @param int $userId User ID
+     * @param string $content Post content
+     * @param string|null $imagePath Image path
+     * @param float|null $locationLat Location latitude
+     * @param float|null $locationLng Location longitude
+     * @param string|null $locationName Location name
      * @return int|bool Post ID or false on failure
      */
-    public function createPost($data) {
-        return $this->create($data);
+    public function createPost($userId, $content, $imagePath = null, $locationLat = null, $locationLng = null, $locationName = null) {
+        try {
+            $sql = "INSERT INTO posts (user_id, content, image_path, location_lat, location_lng, location_name, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())";
+            
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$userId, $content, $imagePath, $locationLat, $locationLng, $locationName]);
+            
+            return $this->db->lastInsertId();
+        } catch (\PDOException $e) {
+            error_log("Error creating post: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
