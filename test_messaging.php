@@ -10,6 +10,16 @@ require_once 'get_db_connection.php';
 echo "<h2>Testing Messaging Functionality</h2>";
 
 try {
+    // First, check if messages table exists
+    $stmt = $pdo->query("SHOW TABLES LIKE 'messages'");
+    if ($stmt->rowCount() == 0) {
+        die("<p style='color: red;'>Messages table does not exist. Please run setup_messages_table.php first.</p>");
+    }
+
+    // Get table structure
+    $stmt = $pdo->query("DESCRIBE messages");
+    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
     // Get two test users
     $stmt = $pdo->query("SELECT id, username FROM users ORDER BY id DESC LIMIT 2");
     $users = $stmt->fetchAll();
@@ -29,21 +39,16 @@ try {
     $testMessage = [
         'sender_id' => $sender['id'],
         'receiver_id' => $receiver['id'],
-        'content' => 'This is a test message sent at ' . date('Y-m-d H:i:s'),
-        'created_at' => date('Y-m-d H:i:s')
+        'content' => 'This is a test message sent at ' . date('Y-m-d H:i:s')
     ];
     
-    $stmt = $pdo->prepare("
-        INSERT INTO messages (sender_id, receiver_id, content, created_at)
-        VALUES (?, ?, ?, ?)
-    ");
+    // Build the SQL query dynamically based on available columns
+    $columns = array_keys($testMessage);
+    $placeholders = array_fill(0, count($columns), '?');
     
-    $stmt->execute([
-        $testMessage['sender_id'],
-        $testMessage['receiver_id'],
-        $testMessage['content'],
-        $testMessage['created_at']
-    ]);
+    $sql = "INSERT INTO messages (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute(array_values($testMessage));
     
     echo "<p style='color: green;'>Test message sent successfully!</p>";
     
@@ -59,7 +64,7 @@ try {
         JOIN users r ON m.receiver_id = r.id
         WHERE (m.sender_id = ? AND m.receiver_id = ?)
            OR (m.sender_id = ? AND m.receiver_id = ?)
-        ORDER BY m.created_at ASC
+        ORDER BY m.id ASC
     ");
     
     $stmt->execute([
@@ -80,7 +85,9 @@ try {
             echo "<div style='padding: 10px; margin: 10px 0; border-radius: 10px; " . $style . "'>";
             echo "<p><strong>" . htmlspecialchars($message['sender_username']) . "</strong> to <strong>" . htmlspecialchars($message['receiver_username']) . "</strong></p>";
             echo "<p>" . htmlspecialchars($message['content']) . "</p>";
-            echo "<p style='font-size: 0.8em; color: #666;'>" . htmlspecialchars($message['created_at']) . "</p>";
+            if (isset($message['created_at'])) {
+                echo "<p style='font-size: 0.8em; color: #666;'>" . htmlspecialchars($message['created_at']) . "</p>";
+            }
             echo "</div>";
         }
         echo "</div>";
