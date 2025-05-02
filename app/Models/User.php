@@ -18,6 +18,12 @@ class User extends Model {
     ];
     protected $hidden = ['password'];
 
+    private $db;
+    
+    public function __construct($db) {
+        $this->db = $db;
+    }
+
     /**
      * Find user by username
      * @param string $username Username
@@ -195,5 +201,148 @@ class User extends Model {
     public function getUnreadNotificationCount($userId) {
         $notificationModel = new Notification();
         return $notificationModel->getUnreadCount($userId);
+    }
+
+    /**
+     * Register a new user
+     * 
+     * @param string $username
+     * @param string $email
+     * @param string $password
+     * @return bool
+     */
+    public function register($username, $email, $password) {
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        
+        $sql = "INSERT INTO users (username, email, password) VALUES (:username, :email, :password)";
+        $stmt = $this->db->prepare($sql);
+        
+        return $stmt->execute([
+            ':username' => $username,
+            ':email' => $email,
+            ':password' => $hashedPassword
+        ]);
+    }
+    
+    /**
+     * Login user
+     * 
+     * @param string $email
+     * @param string $password
+     * @return array|false
+     */
+    public function login($email, $password) {
+        $sql = "SELECT * FROM users WHERE email = :email";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':email' => $email]);
+        
+        $user = $stmt->fetch();
+        
+        if ($user && password_verify($password, $user['password'])) {
+            unset($user['password']); // Don't return password
+            return $user;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Get user by ID
+     * 
+     * @param int $id
+     * @return array|false
+     */
+    public function getById($id) {
+        $sql = "SELECT id, username, email, role, created_at FROM users WHERE id = :id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':id' => $id]);
+        
+        return $stmt->fetch();
+    }
+    
+    /**
+     * Delete user (admin only)
+     * 
+     * @param int $userId
+     * @return bool
+     */
+    public function deleteUser($userId) {
+        $sql = "DELETE FROM users WHERE id = :id";
+        $stmt = $this->db->prepare($sql);
+        
+        return $stmt->execute([':id' => $userId]);
+    }
+    
+    /**
+     * Block a user
+     * 
+     * @param int $blockerId
+     * @param int $blockedId
+     * @return bool
+     */
+    public function blockUser($blockerId, $blockedId) {
+        $sql = "INSERT INTO user_blocks (blocker_id, blocked_id) VALUES (:blocker_id, :blocked_id)";
+        $stmt = $this->db->prepare($sql);
+        
+        return $stmt->execute([
+            ':blocker_id' => $blockerId,
+            ':blocked_id' => $blockedId
+        ]);
+    }
+    
+    /**
+     * Unblock a user
+     * 
+     * @param int $blockerId
+     * @param int $blockedId
+     * @return bool
+     */
+    public function unblockUser($blockerId, $blockedId) {
+        $sql = "DELETE FROM user_blocks WHERE blocker_id = :blocker_id AND blocked_id = :blocked_id";
+        $stmt = $this->db->prepare($sql);
+        
+        return $stmt->execute([
+            ':blocker_id' => $blockerId,
+            ':blocked_id' => $blockedId
+        ]);
+    }
+    
+    /**
+     * Report a user
+     * 
+     * @param int $reporterId
+     * @param int $reportedId
+     * @param string $reason
+     * @return bool
+     */
+    public function reportUser($reporterId, $reportedId, $reason) {
+        $sql = "INSERT INTO user_reports (reporter_id, reported_id, reason) VALUES (:reporter_id, :reported_id, :reason)";
+        $stmt = $this->db->prepare($sql);
+        
+        return $stmt->execute([
+            ':reporter_id' => $reporterId,
+            ':reported_id' => $reportedId,
+            ':reason' => $reason
+        ]);
+    }
+    
+    /**
+     * Get all user reports (admin only)
+     * 
+     * @return array
+     */
+    public function getAllReports() {
+        $sql = "SELECT r.*, 
+                u1.username as reporter_username,
+                u2.username as reported_username
+                FROM user_reports r
+                JOIN users u1 ON r.reporter_id = u1.id
+                JOIN users u2 ON r.reported_id = u2.id
+                ORDER BY r.created_at DESC";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+        
+        return $stmt->fetchAll();
     }
 } 

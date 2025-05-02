@@ -5,193 +5,179 @@
  */
 namespace App\Models;
 
-class Post extends Model {
-    protected $table = 'posts';
-    protected $fillable = [
-        'user_id',
-        'content',
-        'image_path',
-        'location_lat',
-        'location_lng',
-        'location_name'
-    ];
-
+class Post {
+    private $db;
+    
+    public function __construct($db) {
+        $this->db = $db;
+    }
+    
     /**
      * Create a new post
-     * @param int $userId User ID
-     * @param string $content Post content
-     * @param string|null $imagePath Image path
-     * @param float|null $locationLat Location latitude
-     * @param float|null $locationLng Location longitude
-     * @param string|null $locationName Location name
-     * @return int|bool Post ID or false on failure
+     * 
+     * @param int $userId
+     * @param string $content
+     * @param string|null $imageUrl
+     * @param float|null $lat
+     * @param float|null $lng
+     * @return bool
      */
-    public function createPost($userId, $content, $imagePath = null, $locationLat = null, $locationLng = null, $locationName = null) {
-        try {
-            $sql = "INSERT INTO posts (user_id, content, image_path, location_lat, location_lng, location_name, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, NOW())";
-            
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([$userId, $content, $imagePath, $locationLat, $locationLng, $locationName]);
-            
-            return $this->db->lastInsertId();
-        } catch (\PDOException $e) {
-            error_log("Error creating post: " . $e->getMessage());
-            return false;
-        }
+    public function create($userId, $content, $imageUrl = null, $lat = null, $lng = null) {
+        $sql = "INSERT INTO posts (user_id, content, image_url, location_lat, location_lng) 
+                VALUES (:user_id, :content, :image_url, :location_lat, :location_lng)";
+        
+        $stmt = $this->db->prepare($sql);
+        
+        return $stmt->execute([
+            ':user_id' => $userId,
+            ':content' => $content,
+            ':image_url' => $imageUrl,
+            ':location_lat' => $lat,
+            ':location_lng' => $lng
+        ]);
     }
-
+    
     /**
-     * Get a post with its author and interaction data
-     * @param int $postId Post ID
-     * @param int $currentUserId Current user ID for interaction data
-     * @return array|bool Post data or false if not found
+     * Get all posts with user information
+     * 
+     * @param int $limit
+     * @param int $offset
+     * @return array
      */
-    public function getPost($postId, $currentUserId = null) {
-        $post = $this->db->fetch(
-            "SELECT p.*, u.username, u.profile_image,
+    public function getAllPosts($limit = 10, $offset = 0) {
+        $sql = "SELECT p.*, u.username, 
                 (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
                 (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
-            FROM {$this->table} p
-            JOIN users u ON p.user_id = u.id
-            WHERE p.id = ?",
-            [$postId]
-        );
-
-        if (!$post) {
-            return false;
-        }
-
-        // Add current user's interaction data if user is logged in
-        if ($currentUserId) {
-            $post['is_liked'] = (bool) $this->db->fetch(
-                "SELECT 1 FROM likes WHERE post_id = ? AND user_id = ?",
-                [$postId, $currentUserId]
-            );
-        }
-
-        return $post;
+                FROM posts p
+                JOIN users u ON p.user_id = u.id
+                ORDER BY p.created_at DESC
+                LIMIT :limit OFFSET :offset";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll();
     }
-
+    
     /**
-     * Get posts for a user's feed
-     * @param int $userId User ID
-     * @param int $page Page number
-     * @param int $perPage Posts per page
-     * @return array
+     * Get post by ID
+     * 
+     * @param int $postId
+     * @return array|false
      */
-    public function getFeed($userId, $page = 1, $perPage = 10) {
-        $offset = ($page - 1) * $perPage;
-
-        $posts = $this->db->fetchAll(
-            "SELECT p.*, u.username, u.profile_image,
-                (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
-                (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
-                (SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ?) as is_liked
-            FROM {$this->table} p
-            JOIN users u ON p.user_id = u.id
-            WHERE p.user_id = ? OR p.user_id IN (
-                SELECT followed_id FROM follows WHERE follower_id = ?
-            )
-            ORDER BY p.created_at DESC
-            LIMIT ? OFFSET ?",
-            [$userId, $userId, $userId, $perPage, $offset]
-        );
-
-        $total = $this->db->fetch(
-            "SELECT COUNT(*) as count FROM {$this->table} p
-            WHERE p.user_id = ? OR p.user_id IN (
-                SELECT followed_id FROM follows WHERE follower_id = ?
-            )",
-            [$userId, $userId]
-        )['count'];
-
-        return [
-            'data' => $posts,
-            'total' => $total,
-            'per_page' => $perPage,
-            'current_page' => $page,
-            'last_page' => ceil($total / $perPage)
-        ];
-    }
-
-    /**
-     * Get posts by a specific user
-     * @param int $userId User ID
-     * @param int $page Page number
-     * @param int $perPage Posts per page
-     * @return array
-     */
-    public function getUserPosts($userId, $page = 1, $perPage = 10) {
-        $offset = ($page - 1) * $perPage;
-
-        $posts = $this->db->fetchAll(
-            "SELECT p.*, u.username, u.profile_image,
+    public function getById($postId) {
+        $sql = "SELECT p.*, u.username,
                 (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
                 (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
-            FROM {$this->table} p
-            JOIN users u ON p.user_id = u.id
-            WHERE p.user_id = ?
-            ORDER BY p.created_at DESC
-            LIMIT ? OFFSET ?",
-            [$userId, $perPage, $offset]
-        );
-
-        $total = $this->db->fetch(
-            "SELECT COUNT(*) as count FROM {$this->table} WHERE user_id = ?",
-            [$userId]
-        )['count'];
-
-        return [
-            'data' => $posts,
-            'total' => $total,
-            'per_page' => $perPage,
-            'current_page' => $page,
-            'last_page' => ceil($total / $perPage)
-        ];
+                FROM posts p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.id = :id";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':id' => $postId]);
+        
+        return $stmt->fetch();
     }
-
+    
     /**
-     * Get post statistics
-     * @param string $period 'week'|'month'|'year'
+     * Like a post
+     * 
+     * @param int $postId
+     * @param int $userId
+     * @return bool
+     */
+    public function likePost($postId, $userId) {
+        $sql = "INSERT INTO likes (post_id, user_id) VALUES (:post_id, :user_id)";
+        $stmt = $this->db->prepare($sql);
+        
+        return $stmt->execute([
+            ':post_id' => $postId,
+            ':user_id' => $userId
+        ]);
+    }
+    
+    /**
+     * Unlike a post
+     * 
+     * @param int $postId
+     * @param int $userId
+     * @return bool
+     */
+    public function unlikePost($postId, $userId) {
+        $sql = "DELETE FROM likes WHERE post_id = :post_id AND user_id = :user_id";
+        $stmt = $this->db->prepare($sql);
+        
+        return $stmt->execute([
+            ':post_id' => $postId,
+            ':user_id' => $userId
+        ]);
+    }
+    
+    /**
+     * Add a comment to a post
+     * 
+     * @param int $postId
+     * @param int $userId
+     * @param string $content
+     * @return bool
+     */
+    public function addComment($postId, $userId, $content) {
+        $sql = "INSERT INTO comments (post_id, user_id, content) VALUES (:post_id, :user_id, :content)";
+        $stmt = $this->db->prepare($sql);
+        
+        return $stmt->execute([
+            ':post_id' => $postId,
+            ':user_id' => $userId,
+            ':content' => $content
+        ]);
+    }
+    
+    /**
+     * Get comments for a post
+     * 
+     * @param int $postId
      * @return array
      */
-    public function getStats($period = 'week') {
-        $intervals = [
-            'week' => '7 DAY',
-            'month' => '1 MONTH',
-            'year' => '1 YEAR'
-        ];
-
-        $interval = $intervals[$period] ?? '7 DAY';
-
-        return $this->db->fetchAll("
-            SELECT 
-                DATE(created_at) as date,
+    public function getComments($postId) {
+        $sql = "SELECT c.*, u.username
+                FROM comments c
+                JOIN users u ON c.user_id = u.id
+                WHERE c.post_id = :post_id
+                ORDER BY c.created_at ASC";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':post_id' => $postId]);
+        
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Get post statistics for admin
+     * 
+     * @param string $period week|month|year
+     * @return array
+     */
+    public function getPostStats($period) {
+        $dateFormat = match($period) {
+            'week' => '%Y-%u',
+            'month' => '%Y-%m',
+            'year' => '%Y',
+            default => '%Y-%m'
+        };
+        
+        $sql = "SELECT 
+                DATE_FORMAT(created_at, :date_format) as period,
                 COUNT(*) as post_count,
-                COUNT(DISTINCT user_id) as user_count,
-                COUNT(CASE WHEN image_path IS NOT NULL THEN 1 END) as image_count,
-                COUNT(CASE WHEN location_lat IS NOT NULL THEN 1 END) as location_count
-            FROM {$this->table}
-            WHERE created_at >= DATE_SUB(CURRENT_DATE, INTERVAL {$interval})
-            GROUP BY DATE(created_at)
-            ORDER BY date DESC
-        ");
-    }
-
-    /**
-     * Delete a post
-     * @param int $postId Post ID
-     * @param int $userId User ID (for verification)
-     * @return bool Success status
-     */
-    public function deletePost($postId, $userId) {
-        // Verify post ownership
-        $post = $this->find($postId);
-        if (!$post || $post['user_id'] !== $userId) {
-            return false;
-        }
-
-        return (bool) $this->delete($postId);
+                COUNT(DISTINCT user_id) as user_count
+                FROM posts
+                GROUP BY period
+                ORDER BY period DESC";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':date_format' => $dateFormat]);
+        
+        return $stmt->fetchAll();
     }
 } 

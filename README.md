@@ -1,94 +1,132 @@
-# UniSocial Site
+# Social Media Web Site
 
-A social media platform for university students.
+A social media platform similar to Facebook, built with PHP, MySQL, HTML, CSS, and JavaScript/jQuery.
 
-## Directory Structure
+## Features
 
-```
-UniProject01/
-├── app/                    # Application core
-│   ├── config/            # Configuration files
-│   │   └── config.php   # Database configuration
-│   ├── controllers/       # Controller classes
-│   ├── core/             # Core framework classes
-│   ├── migrations/       # Database migrations
-│   ├── models/           # Model classes
-│   ├── routes/           # Route definitions
-│   └── views/            # View templates
-├── public/               # Publicly accessible files
-│   ├── assets/          # Compiled assets
-│   │   ├── css/        # CSS files
-│   │   ├── js/         # JavaScript files
-│   │   └── images/     # Image files
-│   └── uploads/         # User uploaded files
-├── tests/               # Test files
-│   ├── unit/           # Unit tests
-│   └── integration/    # Integration tests
-├── vendor/             # Composer dependencies
-├── .htaccess          # Apache configuration
-├── composer.json      # Composer configuration
-├── index.php          # Application entry point
-└── README.md          # Project documentation
-```
+### User Features
+- User registration and login
+- Create wall posts with text, images, and location
+- Like and comment on posts
+- Send and receive private messages
+- Block/unblock users
+- Report users
 
-## Setup Instructions
+### Admin Features
+- Delete users
+- View post statistics (weekly/monthly/yearly)
+- Manage user reports
+- Take action on reported users
+
+## Requirements
+
+- PHP 8.0 or higher
+- MySQL 5.7 or higher
+- Apache/Nginx web server
+- Composer (PHP package manager)
+- Node.js and npm (for frontend assets)
+
+## Installation
 
 1. Clone the repository:
 ```bash
-git clone [repository-url]
-cd UniProject01
+git clone <repository-url>
+cd social-media-site
 ```
 
-2. Install dependencies:
+2. Install PHP dependencies:
 ```bash
 composer install
 ```
 
-3. Configure the database:
-- Copy `app/config/config.example.php` to `app/config/config.php`
-- Update the database credentials in `config.php`
-
-4. Run database migrations:
+3. Install frontend dependencies:
 ```bash
-php app/migrations/migrate.php
+npm install
 ```
 
-5. Set up the web server:
-- Point the document root to the `public` directory
-- Ensure the `uploads` directory is writable
-- Configure URL rewriting (mod_rewrite for Apache)
-
-6. Start the development server:
+4. Create a MySQL database and import the schema:
 ```bash
-php -S localhost:8000 -t public
+mysql -u your_username -p your_database_name < app/Migrations/create_tables.sql
 ```
 
-## Features
+5. Configure the database connection:
+   - Copy `app/config/db_config.example.php` to `app/config/db_config.php`
+   - Update the database credentials in `db_config.php`
 
-- User registration and authentication
-- Post creation with image upload
-- Like and comment functionality
-- Real-time messaging
-- User profiles
-- Admin dashboard
-- Location-based features
-- Real-time notifications
+6. Set up the web server:
+   - Point your web server's document root to the `public` directory
+   - Ensure the `uploads` directory is writable by the web server
 
-## Development
-
-- Follow PSR-4 autoloading standards
-- Use PHP 7.4 or higher
-- Follow the MVC pattern
-- Write tests for new features
-- Use prepared statements for database queries
-- Sanitize all user input
-- Implement proper error handling
+7. Build frontend assets:
+```bash
+npm run build
+```
 
 ## Testing
+
+### Manual Testing
+
+1. User Registration and Login:
+   - Visit the registration page and create a new account
+   - Try logging in with the created account
+   - Test password validation and error messages
+
+2. Wall Posts:
+   - Create a new post with text
+   - Upload an image with a post
+   - Add location to a post
+   - Like and comment on posts
+   - Verify post visibility and ordering
+
+3. Messaging:
+   - Send a message to another user
+   - Check message delivery
+   - Verify unread message count
+   - Test conversation history
+
+4. User Management:
+   - Block a user
+   - Report a user
+   - Verify blocked user's content is hidden
+   - Test unblocking functionality
+
+5. Admin Features:
+   - Log in as admin
+   - View post statistics
+   - Check user reports
+   - Delete a user
+   - Take action on reported users
+
+### Automated Testing
 
 Run the test suite:
 ```bash
 ./vendor/bin/phpunit
+```
+
+## Security Considerations
+
+- All passwords are hashed using PHP's password_hash()
+- SQL injection prevention using prepared statements
+- XSS protection through output escaping
+- CSRF protection on forms
+- Input validation and sanitization
+- Secure file upload handling
+
+## File Structure
+
+```
+├── app/
+│   ├── Auth/         # Authentication related code
+│   ├── Controllers/  # Application controllers
+│   ├── Core/         # Core framework components
+│   ├── Models/       # Database models
+│   ├── Views/        # View templates
+│   └── config/       # Configuration files
+├── public/           # Publicly accessible files
+├── uploads/          # User uploaded files
+├── assets/          # Frontend assets
+└── tests/           # Test files
 ```
 
 ## Contributing
@@ -101,4 +139,4 @@ Run the test suite:
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the LICENSE file for details.
