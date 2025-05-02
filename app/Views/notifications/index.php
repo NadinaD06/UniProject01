@@ -1,162 +1,172 @@
-<?php
-/**
- * Notifications View
- * Displays user notifications
- */
-?>
-
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-2xl mx-auto">
-        <div class="bg-white rounded-lg shadow-md">
-            <div class="p-6 border-b">
-                <h1 class="text-2xl font-bold text-gray-800">Notifications</h1>
-                <p class="text-gray-600 mt-1">Stay updated with your latest activities</p>
-            </div>
-
-            <div class="divide-y divide-gray-200">
-                <?php if (empty($notifications)): ?>
-                    <div class="p-6 text-center text-gray-500">
-                        <p>No notifications yet</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/assets/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+        <div class="container">
+            <a class="navbar-brand" href="/feed">Social Media</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/feed">Feed</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/messages">Messages</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/notifications">
+                            Notifications
+                            <?php if ($unreadCount > 0): ?>
+                                <span class="badge bg-danger"><?php echo $unreadCount; ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <div class="dropdown">
+                        <button class="btn btn-link text-dark dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                            <img src="<?php echo htmlspecialchars($user['profile_image'] ?? '/assets/images/default-avatar.png'); ?>" 
+                                 alt="Profile" 
+                                 class="rounded-circle"
+                                 width="32" 
+                                 height="32">
+                            <?php echo htmlspecialchars($user['username']); ?>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/profile">Profile</a></li>
+                            <li><a class="dropdown-item" href="/settings">Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/logout">Logout</a></li>
+                        </ul>
                     </div>
-                <?php else: ?>
-                    <?php foreach ($notifications as $notification): ?>
-                        <div class="p-4 hover:bg-gray-50 transition-colors duration-200 <?php echo $notification['is_read'] ? '' : 'bg-blue-50'; ?>"
-                             data-notification-id="<?php echo $notification['id']; ?>">
-                            <div class="flex items-start space-x-4">
-                                <!-- Notification Icon -->
-                                <div class="flex-shrink-0">
-                                    <?php
-                                    $iconClass = 'text-gray-400';
-                                    switch ($notification['type']) {
-                                        case 'message':
-                                            $iconClass = 'text-blue-500';
-                                            $icon = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>';
-                                            break;
-                                        case 'like':
-                                            $iconClass = 'text-red-500';
-                                            $icon = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>';
-                                            break;
-                                        case 'comment':
-                                            $iconClass = 'text-green-500';
-                                            $icon = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>';
-                                            break;
-                                        case 'report':
-                                            $iconClass = 'text-yellow-500';
-                                            $icon = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
-                                            break;
-                                        default:
-                                            $icon = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
-                                    }
-                                    ?>
-                                    <div class="<?php echo $iconClass; ?>">
-                                        <?php echo $icon; ?>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="card-title mb-0">Notifications</h5>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <?php if (empty($notifications)): ?>
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-bell fa-3x mb-3"></i>
+                                <p>No notifications yet.</p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($notifications as $notification): ?>
+                                <div class="list-group-item" id="notification-<?php echo $notification['id']; ?>">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            <?php if ($notification['type'] === 'friend_request'): ?>
+                                                <i class="fas fa-user-plus fa-2x text-primary"></i>
+                                            <?php elseif ($notification['type'] === 'post_like'): ?>
+                                                <i class="fas fa-heart fa-2x text-danger"></i>
+                                            <?php elseif ($notification['type'] === 'post_comment'): ?>
+                                                <i class="fas fa-comment fa-2x text-success"></i>
+                                            <?php elseif ($notification['type'] === 'friend_accept'): ?>
+                                                <i class="fas fa-user-check fa-2x text-success"></i>
+                                            <?php else: ?>
+                                                <i class="fas fa-bell fa-2x text-muted"></i>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <p class="mb-0">
+                                                    <?php
+                                                    $data = $notification['data'];
+                                                    switch ($notification['type']) {
+                                                        case 'friend_request':
+                                                            echo htmlspecialchars($data['username']) . ' sent you a friend request';
+                                                            break;
+                                                        case 'post_like':
+                                                            echo htmlspecialchars($data['username']) . ' liked your post';
+                                                            break;
+                                                        case 'post_comment':
+                                                            echo htmlspecialchars($data['username']) . ' commented on your post';
+                                                            break;
+                                                        case 'friend_accept':
+                                                            echo htmlspecialchars($data['username']) . ' accepted your friend request';
+                                                            break;
+                                                        default:
+                                                            echo htmlspecialchars($notification['type']);
+                                                    }
+                                                    ?>
+                                                </p>
+                                                <div class="d-flex align-items-center">
+                                                    <small class="text-muted me-3">
+                                                        <?php echo date('M j, g:i A', strtotime($notification['created_at'])); ?>
+                                                    </small>
+                                                    <button class="btn btn-link text-muted p-0 delete-notification" 
+                                                            data-id="<?php echo $notification['id']; ?>">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <?php if (isset($data['content'])): ?>
+                                                <p class="text-muted small mb-0">
+                                                    <?php echo htmlspecialchars($data['content']); ?>
+                                                </p>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </div>
-
-                                <!-- Notification Content -->
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm text-gray-900">
-                                        <?php echo htmlspecialchars($notification['content']); ?>
-                                    </p>
-                                    <p class="text-xs text-gray-500 mt-1">
-                                        <?php echo date('M j, Y g:i A', strtotime($notification['created_at'])); ?>
-                                    </p>
-                                </div>
-
-                                <!-- Mark as Read Button -->
-                                <?php if (!$notification['is_read']): ?>
-                                    <button class="text-sm text-blue-600 hover:text-blue-800"
-                                            onclick="markAsRead(<?php echo $notification['id']; ?>)">
-                                        Mark as read
-                                    </button>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-
-            <!-- Pagination -->
-            <?php if ($pagination['last_page'] > 1): ?>
-                <div class="px-6 py-4 border-t">
-                    <div class="flex justify-between items-center">
-                        <?php if ($pagination['current_page'] > 1): ?>
-                            <a href="?page=<?php echo $pagination['current_page'] - 1; ?>"
-                               class="text-blue-600 hover:text-blue-800">
-                                Previous
-                            </a>
-                        <?php else: ?>
-                            <span class="text-gray-400">Previous</span>
-                        <?php endif; ?>
-
-                        <span class="text-gray-600">
-                            Page <?php echo $pagination['current_page']; ?> of <?php echo $pagination['last_page']; ?>
-                        </span>
-
-                        <?php if ($pagination['current_page'] < $pagination['last_page']): ?>
-                            <a href="?page=<?php echo $pagination['current_page'] + 1; ?>"
-                               class="text-blue-600 hover:text-blue-800">
-                                Next
-                            </a>
-                        <?php else: ?>
-                            <span class="text-gray-400">Next</span>
+                            <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
                 </div>
-            <?php endif; ?>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-function markAsRead(notificationId) {
-    fetch('/api/notifications/mark-as-read', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            notification_ids: [notificationId]
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.message) {
-            // Update UI
-            const notification = document.querySelector(`[data-notification-id="${notificationId}"]`);
-            if (notification) {
-                notification.classList.remove('bg-blue-50');
-                const markAsReadButton = notification.querySelector('button');
-                if (markAsReadButton) {
-                    markAsReadButton.remove();
-                }
-            }
-            
-            // Update notification count in header
-            updateNotificationCount();
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-    });
-}
-
-function updateNotificationCount() {
-    fetch('/api/notifications/unread-count')
-        .then(response => response.json())
-        .then(data => {
-            const countElement = document.getElementById('notification-count');
-            if (countElement) {
-                countElement.textContent = data.count;
-                if (data.count === 0) {
-                    countElement.classList.add('hidden');
-                } else {
-                    countElement.classList.remove('hidden');
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Delete notification
+            $('.delete-notification').on('click', function() {
+                const notificationId = $(this).data('id');
+                const notification = $(`#notification-${notificationId}`);
+                
+                $.ajax({
+                    url: `/notifications/delete/${notificationId}`,
+                    type: 'POST',
+                    success: function(response) {
+                        if (response.success) {
+                            notification.fadeOut(300, function() {
+                                $(this).remove();
+                                
+                                // If no notifications left, show empty state
+                                if ($('.list-group-item').length === 0) {
+                                    $('.list-group').html(`
+                                        <div class="text-center text-muted py-4">
+                                            <i class="fas fa-bell fa-3x mb-3"></i>
+                                            <p>No notifications yet.</p>
+                                        </div>
+                                    `);
+                                }
+                            });
+                        }
+                    }
+                });
+            });
         });
-}
-</script> 
+    </script>
+</body>
+</html> 

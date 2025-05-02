@@ -5,100 +5,97 @@
  */
 namespace App\Controllers;
 
+use App\Core\Controller;
 use App\Models\Notification;
+use App\Models\User;
 
-class NotificationController extends BaseController {
+class NotificationController extends Controller {
     private $notificationModel;
+    private $userModel;
 
-    public function __construct() {
-        parent::__construct();
-        $this->notificationModel = new Notification();
+    public function __construct($pdo) {
+        parent::__construct($pdo);
+        $this->notificationModel = new Notification($pdo);
+        $this->userModel = new User($pdo);
     }
 
     /**
-     * Get user's notifications
-     * @return void
+     * Display notifications page
      */
     public function index() {
-        if (!$this->isLoggedIn()) {
-            $this->redirect('/login');
-        }
-
-        $page = $_GET['page'] ?? 1;
-        $notifications = $this->notificationModel->getUserNotifications(
-            $_SESSION['user_id'],
-            $page
-        );
-
-        $this->view('notifications/index', [
-            'notifications' => $notifications['data'],
-            'pagination' => [
-                'current_page' => $notifications['current_page'],
-                'last_page' => $notifications['last_page'],
-                'per_page' => $notifications['per_page'],
-                'total' => $notifications['total']
-            ]
+        $this->requireLogin();
+        
+        $userId = $this->getCurrentUserId();
+        $page = (int) $this->get('page', 1);
+        $perPage = 20;
+        $offset = ($page - 1) * $perPage;
+        
+        // Get notifications
+        $notifications = $this->notificationModel->getForUser($userId, $perPage, $offset);
+        
+        // Get unread count
+        $unreadCount = $this->notificationModel->getUnreadCount($userId);
+        
+        // Mark notifications as read
+        $this->notificationModel->markAsRead($userId);
+        
+        $this->render('notifications/index', [
+            'notifications' => $notifications,
+            'unreadCount' => $unreadCount,
+            'user' => $this->userModel->find($userId)
         ]);
     }
 
     /**
      * Get unread notification count
-     * @return void
      */
     public function getUnreadCount() {
-        if (!$this->isLoggedIn()) {
-            $this->jsonResponse(['error' => 'Unauthorized'], 401);
-            return;
+        $this->requireLogin();
+        
+        try {
+            $count = $this->notificationModel->getUnreadCount($this->getCurrentUserId());
+            $this->json(['count' => $count]);
+        } catch (\Exception $e) {
+            $this->json(['error' => 'An error occurred.'], 500);
         }
-
-        $count = $this->notificationModel->getUnreadCount($_SESSION['user_id']);
-        $this->jsonResponse(['count' => $count]);
     }
 
     /**
      * Mark notifications as read
-     * @return void
      */
     public function markAsRead() {
-        if (!$this->isLoggedIn()) {
-            $this->jsonResponse(['error' => 'Unauthorized'], 401);
-            return;
+        $this->requireLogin();
+        
+        if (!$this->post()) {
+            $this->json(['error' => 'Invalid request.'], 400);
         }
-
-        $notificationIds = $_POST['notification_ids'] ?? null;
-        if ($notificationIds) {
-            $notificationIds = json_decode($notificationIds, true);
-        }
-
-        $success = $this->notificationModel->markAsRead(
-            $_SESSION['user_id'],
-            $notificationIds
-        );
-
-        if ($success) {
-            $this->jsonResponse(['message' => 'Notifications marked as read']);
-        } else {
-            $this->jsonResponse(['error' => 'Failed to mark notifications as read'], 500);
+        
+        $notificationIds = $this->post('notification_ids', []);
+        
+        try {
+            $this->notificationModel->markAsRead($this->getCurrentUserId(), $notificationIds);
+            $this->json(['success' => true]);
+        } catch (\Exception $e) {
+            $this->json(['error' => 'An error occurred.'], 500);
         }
     }
 
     /**
-     * Delete old notifications
-     * @return void
+     * Delete a notification
      */
-    public function deleteOld() {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(['error' => 'Unauthorized'], 401);
-            return;
-        }
-
-        $daysOld = $_POST['days_old'] ?? 30;
-        $success = $this->notificationModel->deleteOldNotifications($daysOld);
-
-        if ($success) {
-            $this->jsonResponse(['message' => 'Old notifications deleted']);
-        } else {
-            $this->jsonResponse(['error' => 'Failed to delete old notifications'], 500);
+    public function delete($id) {
+        $this->requireLogin();
+        
+        try {
+            $success = $this->notificationModel->delete($id, $this->getCurrentUserId());
+            
+            if ($success) {
+                $this->json(['success' => true]);
+            } else {
+                $this->json(['error' => 'Notification not found.'], 404);
+            }
+        } catch (\Exception $e) {
+            $this->json(['error' => 'An error occurred.'], 500);
         }
     }
 }

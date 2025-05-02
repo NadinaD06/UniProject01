@@ -134,4 +134,52 @@ a:hover {
     align-items: center;
     justify-content: center;
     margin-left: 0.5rem;
+}
+
+/* Notifications */
+.list-group-item {
+    border-left: none;
+    border-right: none;
+    padding: 1rem;
+}
+
+.list-group-item:first-child {
+    border-top: none;
+}
+
+.list-group-item:last-child {
+    border-bottom: none;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: #f8f9fa;
+}
+
+.notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-time {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.delete-notification {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.list-group-item:hover .delete-notification {
+    opacity: 1;
 } 

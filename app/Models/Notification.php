@@ -5,6 +5,8 @@
  */
 namespace App\Models;
 
+use App\Core\Model;
+
 class Notification extends Model {
     protected $table = 'notifications';
     protected $fillable = [
@@ -14,6 +16,10 @@ class Notification extends Model {
         'reference_id',
         'is_read'
     ];
+
+    public function __construct($pdo) {
+        parent::__construct($pdo);
+    }
 
     /**
      * Create a new notification
@@ -130,5 +136,59 @@ class Notification extends Model {
             error_log("Error deleting old notifications: " . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Create a new notification
+     */
+    public function create($userId, $type, $data) {
+        $sql = "INSERT INTO notifications (user_id, type, data, created_at) 
+                VALUES (:user_id, :type, :data, NOW())";
+        
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            'user_id' => $userId,
+            'type' => $type,
+            'data' => json_encode($data)
+        ]);
+    }
+
+    /**
+     * Get notifications for a user
+     */
+    public function getForUser($userId, $limit = 20, $offset = 0) {
+        $sql = "SELECT * FROM notifications 
+                WHERE user_id = :user_id 
+                ORDER BY created_at DESC 
+                LIMIT :limit OFFSET :offset";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':user_id', $userId, \PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
+        $stmt->execute();
+        
+        $notifications = $stmt->fetchAll();
+        
+        // Decode JSON data
+        foreach ($notifications as &$notification) {
+            $notification['data'] = json_decode($notification['data'], true);
+        }
+        
+        return $notifications;
+    }
+
+    /**
+     * Delete a notification
+     */
+    public function delete($notificationId, $userId) {
+        $sql = "DELETE FROM notifications 
+                WHERE id = :id AND user_id = :user_id";
+        
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            'id' => $notificationId,
+            'user_id' => $userId
+        ]);
     }
 } 
