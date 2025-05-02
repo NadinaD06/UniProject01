@@ -1,157 +1,120 @@
 <?php
 /**
- * Database configuration and connection handler
- * Manages database connections using PDO
+ * Database Class
+ * Handles database connection
  */
 
 class Database {
-    private static $instance = null;
-    private $pdo;
-    private $config;
-
+    // Database credentials
+    private $host;
+    private $db_name;
+    private $username;
+    private $password;
+    private $port;
+    private $conn;
+    
     /**
-     * Private constructor to prevent direct instantiation
+     * Constructor
      */
-    private function __construct() {
-        $this->config = require __DIR__ . '/config.php';
-        $this->connect();
+    public function __construct() {
+        // Load configuration
+        $config = $this->loadConfig();
+        
+        $this->host = $config['host'];
+        $this->db_name = $config['db_name'];
+        $this->username = $config['username'];
+        $this->password = $config['password'];
+        $this->port = $config['port'] ?? 3306;
     }
-
+    
     /**
-     * Get database instance (Singleton pattern)
-     * @return Database
+     * Load database configuration
+     * 
+     * @return array Configuration parameters
      */
-    public static function getInstance() {
-        if (self::$instance === null) {
-            self::$instance = new self();
+    private function loadConfig() {
+        // Check if config file exists
+        $config_file = __DIR__ . '/db_config.php';
+        
+        if (file_exists($config_file)) {
+            return include $config_file;
         }
-        return self::$instance;
+        
+        // Default to environment variables if config file doesn't exist
+        return [
+            'host' => getenv('DB_HOST') ?: 'localhost',
+            'db_name' => getenv('DB_NAME') ?: 'artspace',
+            'username' => getenv('DB_USER') ?: 'root',
+            'password' => getenv('DB_PASS') ?: '',
+            'port' => getenv('DB_PORT') ?: 3306
+        ];
     }
-
+    
     /**
-     * Establish database connection
-     * @throws PDOException if connection fails
+     * Get database connection
+     * 
+     * @return PDO Database connection
      */
-    private function connect() {
+    public function getConnection() {
+        $this->conn = null;
+        
         try {
-            $dsn = sprintf(
-                "mysql:host=%s;dbname=%s;charset=%s",
-                $this->config['database']['host'],
-                $this->config['database']['name'],
-                $this->config['database']['charset']
-            );
-
+            $dsn = "mysql:host={$this->host};port={$this->port};dbname={$this->db_name};charset=utf8mb4";
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
             ];
-
-            $this->pdo = new PDO(
-                $dsn,
-                $this->config['database']['user'],
-                $this->config['database']['pass'],
-                $options
-            );
-        } catch (PDOException $e) {
-            throw new PDOException("Connection failed: " . $e->getMessage());
+            
+            $this->conn = new PDO($dsn, $this->username, $this->password, $options);
+        } catch(PDOException $e) {
+            // Log the error to a file
+            error_log("Database Connection Error: " . $e->getMessage(), 0);
+            
+            // Throw a user-friendly exception
+            throw new Exception("Database connection failed. Please try again later.");
         }
-    }
-
-    /**
-     * Get PDO instance
-     * @return PDO
-     */
-    public function getConnection() {
-        return $this->pdo;
-    }
-
-    /**
-     * Execute a query with parameters
-     * @param string $query SQL query
-     * @param array $params Parameters for prepared statement
-     * @return PDOStatement
-     */
-    public function query($query, $params = []) {
-        $stmt = $this->pdo->prepare($query);
-        $stmt->execute($params);
-        return $stmt;
-    }
-
-    /**
-     * Get single row from database
-     * @param string $query SQL query
-     * @param array $params Parameters for prepared statement
-     * @return array|false
-     */
-    public function fetch($query, $params = []) {
-        return $this->query($query, $params)->fetch();
-    }
-
-    /**
-     * Get multiple rows from database
-     * @param string $query SQL query
-     * @param array $params Parameters for prepared statement
-     * @return array
-     */
-    public function fetchAll($query, $params = []) {
-        return $this->query($query, $params)->fetchAll();
-    }
-
-    /**
-     * Insert data into database
-     * @param string $table Table name
-     * @param array $data Data to insert
-     * @return int Last insert ID
-     */
-    public function insert($table, $data) {
-        $fields = array_keys($data);
-        $values = array_fill(0, count($fields), '?');
         
-        $query = sprintf(
-            "INSERT INTO %s (%s) VALUES (%s)",
-            $table,
-            implode(', ', $fields),
-            implode(', ', $values)
-        );
-
-        $this->query($query, array_values($data));
-        return $this->pdo->lastInsertId();
+        return $this->conn;
     }
-
+    
     /**
-     * Update data in database
-     * @param string $table Table name
-     * @param array $data Data to update
-     * @param string $where Where clause
-     * @param array $whereParams Parameters for where clause
-     * @return int Number of affected rows
+     * Begin a transaction
+     * 
+     * @return bool Success status
      */
-    public function update($table, $data, $where, $whereParams = []) {
-        $fields = array_map(function($field) {
-            return "$field = ?";
-        }, array_keys($data));
-
-        $query = sprintf(
-            "UPDATE %s SET %s WHERE %s",
-            $table,
-            implode(', ', $fields),
-            $where
-        );
-
-        $params = array_merge(array_values($data), $whereParams);
-        return $this->query($query, $params)->rowCount();
+    public function beginTransaction() {
+        if (!$this->conn) {
+            $this->getConnection();
+        }
+        
+        return $this->conn->beginTransaction();
     }
-
+    
     /**
-     * Delete data from database
-     * @param string $table Table name
-     * @param string $where Where clause
-     * @param array $params Parameters for where clause
-     * @return int Number of affected rows
+     * Commit a transaction
+     * 
+     * @return bool Success status
      */
-    public function delete($table, $where, $params = []) {
-        $query = sprintf("DELETE FROM %s WHERE %s", $table, $where);
-        return $this->query($query, $params)->rowCount();
+    public function commit() {
+        if (!$this->conn) {
+            return false;
+        }
+        
+        return $this->conn->commit();
     }
-} 
+    
+    /**
+     * Rollback a transaction
+     * 
+     * @return bool Success status
+     */
+    public function rollback() {
+        if (!$this->conn) {
+            return false;
+        }
+        
+        return $this->conn->rollback();
+    }
+}
