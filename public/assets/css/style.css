@@ -3,6 +3,7 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    background-color: #f8f9fa;
 }
 
 /* Auth Pages */
@@ -17,6 +18,12 @@ body {
 .card {
     border: none;
     border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 2px 5px rgba(0,0,0,.2);
 }
 
 .card-body {
@@ -241,10 +248,6 @@ a:hover {
     text-align: center;
 }
 
-.card {
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-}
-
 .card-header {
     border-bottom: 1px solid rgba(0, 0, 0, 0.125);
 }
@@ -308,4 +311,364 @@ a:hover {
 .text-muted {
     color: #6c757d !important;
     font-size: 0.875rem;
+}
+
+/* Navigation */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+/* Posts */
+.post {
+    margin-bottom: 1.5rem;
+}
+
+.post .card-body {
+    padding: 1.25rem;
+}
+
+.post img {
+    max-width: 100%;
+    height: auto;
+}
+
+.post-map {
+    border-radius: 0.25rem;
+    overflow: hidden;
+}
+
+/* Like Button */
+.like-button {
+    text-decoration: none;
+    color: #6c757d;
+    transition: color 0.3s ease;
+}
+
+.like-button:hover {
+    color: #dc3545;
+}
+
+.like-button.liked {
+    color: #dc3545;
+}
+
+.like-button i {
+    margin-right: 0.5rem;
+}
+
+/* Comments */
+.comments-section {
+    margin-top: 1rem;
+    display: none;
+}
+
+.comment {
+    margin-bottom: 1rem;
+}
+
+.comment img {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+}
+
+.comment-form {
+    margin-top: 1rem;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.btn-outline-primary {
+    color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-outline-primary:hover {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+/* Forms */
+.form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+}
+
+/* Alerts */
+.alert {
+    border: none;
+    border-radius: 0.25rem;
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+/* Text */
+.text-muted {
+    color: #6c757d !important;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+/* Badges */
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+/* Dropdown */
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,.2);
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Map */
+.leaflet-container {
+    border-radius: 0.25rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .post .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Admin Styles */
+.admin-dashboard .card {
+    transition: transform 0.2s;
+}
+
+.admin-dashboard .card:hover {
+    transform: translateY(-5px);
+}
+
+.admin-dashboard .card-title {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.admin-dashboard .card-text {
+    color: #212529;
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0.5rem 0;
+}
+
+/* Table Styles */
+.table th {
+    font-weight: 600;
+    color: #495057;
+    border-top: none;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.table .badge {
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+}
+
+/* Button Styles */
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+.btn-group .btn i {
+    font-size: 0.875rem;
+}
+
+/* Modal Styles */
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Form Styles */
+.form-select-sm {
+    padding: 0.25rem 2rem 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Status Badge Colors */
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+/* Search Bar */
+.input-group {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.input-group .form-control {
+    border-right: none;
+}
+
+.input-group .btn {
+    border-left: none;
+    background-color: #fff;
+}
+
+.input-group .btn:hover {
+    background-color: #f8f9fa;
+}
+
+/* Profile Images */
+.profile-image-sm {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.profile-image-md {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* Activity Feed */
+.activity-feed {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    padding: 1rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-item .timestamp {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .admin-dashboard .card {
+        margin-bottom: 1rem;
+    }
+    
+    .table-responsive {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.25rem;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .admin-dashboard .card {
+        background-color: #2d3748;
+        border-color: #4a5568;
+    }
+    
+    .admin-dashboard .card-title {
+        color: #a0aec0;
+    }
+    
+    .admin-dashboard .card-text {
+        color: #fff;
+    }
+    
+    .table th {
+        color: #a0aec0;
+    }
+    
+    .table td {
+        color: #fff;
+    }
+    
+    .modal-content {
+        background-color: #2d3748;
+        border-color: #4a5568;
+    }
+    
+    .modal-header,
+    .modal-footer {
+        background-color: #2d3748;
+        border-color: #4a5568;
+    }
+    
+    .form-select-sm {
+        background-color: #2d3748;
+        border-color: #4a5568;
+        color: #fff;
+    }
+    
+    .input-group .form-control,
+    .input-group .btn {
+        background-color: #2d3748;
+        border-color: #4a5568;
+        color: #fff;
+    }
+    
+    .activity-item {
+        border-color: #4a5568;
+    }
+    
+    .activity-item .timestamp {
+        color: #a0aec0;
+    }
 } 

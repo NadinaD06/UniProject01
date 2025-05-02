@@ -5,6 +5,8 @@
  */
 namespace App\Models;
 
+use App\Core\Model;
+
 class Report extends Model {
     protected $table = 'reports';
     protected $fillable = ['reporter_id', 'reported_user_id', 'reason', 'status', 'admin_action', 'action_date'];
@@ -151,5 +153,117 @@ class Report extends Model {
             error_log("Error getting report stats: " . $e->getMessage());
             return [];
         }
+    }
+
+    /**
+     * Create a new report
+     */
+    public function create($data) {
+        $sql = "INSERT INTO reports (reporter_id, reported_id, reason, status, created_at) 
+                VALUES (:reporter_id, :reported_id, :reason, 'pending', NOW())";
+        
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            'reporter_id' => $data['reporter_id'],
+            'reported_id' => $data['reported_id'],
+            'reason' => $data['reason']
+        ]);
+    }
+    
+    /**
+     * Get reports for admin
+     */
+    public function getForAdmin($status = null, $limit = 20, $offset = 0) {
+        $sql = "SELECT r.*, 
+                u1.username as reporter_username, u1.profile_image as reporter_image,
+                u2.username as reported_username, u2.profile_image as reported_image
+                FROM reports r
+                JOIN users u1 ON r.reporter_id = u1.id
+                JOIN users u2 ON r.reported_id = u2.id";
+        
+        $params = [];
+        
+        if ($status) {
+            $sql .= " WHERE r.status = :status";
+            $params['status'] = $status;
+        }
+        
+        $sql .= " ORDER BY r.created_at DESC LIMIT :limit OFFSET :offset";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
+        
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(':' . $key, $value);
+        }
+        
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Update report status
+     */
+    public function updateStatus($reportId, $status, $adminId) {
+        $sql = "UPDATE reports SET status = :status, admin_id = :admin_id, updated_at = NOW() 
+                WHERE id = :id";
+        
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            'id' => $reportId,
+            'status' => $status,
+            'admin_id' => $adminId
+        ]);
+    }
+    
+    /**
+     * Get report by ID
+     */
+    public function getById($reportId) {
+        $sql = "SELECT r.*, 
+                u1.username as reporter_username, u1.profile_image as reporter_image,
+                u2.username as reported_username, u2.profile_image as reported_image
+                FROM reports r
+                JOIN users u1 ON r.reporter_id = u1.id
+                JOIN users u2 ON r.reported_id = u2.id
+                WHERE r.id = :id";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['id' => $reportId]);
+        return $stmt->fetch();
+    }
+    
+    /**
+     * Get reports by user
+     */
+    public function getByUser($userId, $type = 'reported') {
+        $sql = "SELECT r.*, 
+                u1.username as reporter_username, u1.profile_image as reporter_image,
+                u2.username as reported_username, u2.profile_image as reported_image
+                FROM reports r
+                JOIN users u1 ON r.reporter_id = u1.id
+                JOIN users u2 ON r.reported_id = u2.id
+                WHERE r." . ($type === 'reported' ? 'reported_id' : 'reporter_id') . " = :user_id
+                ORDER BY r.created_at DESC";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['user_id' => $userId]);
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Get report statistics
+     */
+    public function getStats() {
+        $sql = "SELECT 
+                status,
+                COUNT(*) as count
+                FROM reports
+                GROUP BY status";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll();
     }
 } 

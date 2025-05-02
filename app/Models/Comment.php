@@ -5,9 +5,82 @@
  */
 namespace App\Models;
 
+use App\Core\Model;
+
 class Comment extends Model {
     protected $table = 'comments';
     protected $fillable = ['user_id', 'post_id', 'content'];
+
+    /**
+     * Create a new comment
+     */
+    public function create($data) {
+        $sql = "INSERT INTO comments (post_id, user_id, content, created_at) 
+                VALUES (:post_id, :user_id, :content, NOW())";
+        
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            'post_id' => $data['post_id'],
+            'user_id' => $data['user_id'],
+            'content' => $data['content']
+        ]);
+    }
+    
+    /**
+     * Get comments for a post
+     */
+    public function getForPost($postId, $limit = 20, $offset = 0) {
+        $sql = "SELECT c.*, u.username, u.profile_image
+                FROM comments c
+                JOIN users u ON c.user_id = u.id
+                WHERE c.post_id = :post_id
+                ORDER BY c.created_at DESC
+                LIMIT :limit OFFSET :offset";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':post_id', $postId, \PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Get latest comment for a post
+     */
+    public function getLatest($postId) {
+        $sql = "SELECT c.*, u.username, u.profile_image
+                FROM comments c
+                JOIN users u ON c.user_id = u.id
+                WHERE c.post_id = :post_id
+                ORDER BY c.created_at DESC
+                LIMIT 1";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['post_id' => $postId]);
+        return $stmt->fetch();
+    }
+    
+    /**
+     * Get comment count for a post
+     */
+    public function getCount($postId) {
+        $sql = "SELECT COUNT(*) as count FROM comments WHERE post_id = :post_id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['post_id' => $postId]);
+        $result = $stmt->fetch();
+        return $result['count'];
+    }
+    
+    /**
+     * Delete a comment
+     */
+    public function delete($id) {
+        $sql = "DELETE FROM comments WHERE id = :id";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute(['id' => $id]);
+    }
 
     /**
      * Add a comment to a post

@@ -5,9 +5,80 @@
  */
 namespace App\Models;
 
+use App\Core\Model;
+
 class Like extends Model {
     protected $table = 'likes';
     protected $fillable = ['user_id', 'post_id'];
+
+    /**
+     * Toggle like status for a post
+     */
+    public function toggleLike($postId, $userId) {
+        // Check if already liked
+        $sql = "SELECT id FROM likes WHERE post_id = :post_id AND user_id = :user_id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'post_id' => $postId,
+            'user_id' => $userId
+        ]);
+        
+        $like = $stmt->fetch();
+        
+        if ($like) {
+            // Unlike
+            $sql = "DELETE FROM likes WHERE id = :id";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute(['id' => $like['id']]);
+        } else {
+            // Like
+            $sql = "INSERT INTO likes (post_id, user_id, created_at) VALUES (:post_id, :user_id, NOW())";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([
+                'post_id' => $postId,
+                'user_id' => $userId
+            ]);
+        }
+    }
+    
+    /**
+     * Get likes for a post
+     */
+    public function getForPost($postId) {
+        $sql = "SELECT l.*, u.username, u.profile_image
+                FROM likes l
+                JOIN users u ON l.user_id = u.id
+                WHERE l.post_id = :post_id
+                ORDER BY l.created_at DESC";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['post_id' => $postId]);
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Get like count for a post
+     */
+    public function getCount($postId) {
+        $sql = "SELECT COUNT(*) as count FROM likes WHERE post_id = :post_id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['post_id' => $postId]);
+        $result = $stmt->fetch();
+        return $result['count'];
+    }
+    
+    /**
+     * Check if user liked a post
+     */
+    public function isLiked($postId, $userId) {
+        $sql = "SELECT id FROM likes WHERE post_id = :post_id AND user_id = :user_id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'post_id' => $postId,
+            'user_id' => $userId
+        ]);
+        return $stmt->fetch() !== false;
+    }
 
     /**
      * Add a like to a post
@@ -42,45 +113,6 @@ class Like extends Model {
         } catch (\PDOException $e) {
             error_log("Error removing like: " . $e->getMessage());
             return false;
-        }
-    }
-
-    /**
-     * Check if a user has liked a post
-     * @param int $userId User ID
-     * @param int $postId Post ID
-     * @return bool True if liked, false otherwise
-     */
-    public function hasLiked($userId, $postId) {
-        try {
-            $sql = "SELECT COUNT(*) as count FROM {$this->table} WHERE user_id = ? AND post_id = ?";
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([$userId, $postId]);
-            $result = $stmt->fetch();
-            
-            return (bool) $result['count'];
-        } catch (\PDOException $e) {
-            error_log("Error checking like status: " . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Get like count for a post
-     * @param int $postId Post ID
-     * @return int Number of likes
-     */
-    public function getLikeCount($postId) {
-        try {
-            $sql = "SELECT COUNT(*) as count FROM {$this->table} WHERE post_id = ?";
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([$postId]);
-            $result = $stmt->fetch();
-            
-            return (int) $result['count'];
-        } catch (\PDOException $e) {
-            error_log("Error getting like count: " . $e->getMessage());
-            return 0;
         }
     }
 

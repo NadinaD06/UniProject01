@@ -1,330 +1,246 @@
-<?php
-/**
- * Admin Reports View
- * Displays and manages user reports
- */
-?>
-
-<div class="container mt-4">
-    <h2>User Reports</h2>
-    
-    <!-- Statistics Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <h5 class="card-title">Total Reports</h5>
-                    <h2 class="card-text" id="totalReports">0</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white">
-                <div class="card-body">
-                    <h5 class="card-title">Pending</h5>
-                    <h2 class="card-text" id="pendingReports">0</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <h5 class="card-title">Resolved</h5>
-                    <h2 class="card-text" id="resolvedReports">0</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <h5 class="card-title">This Month</h5>
-                    <h2 class="card-text" id="monthlyReports">0</h2>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <form id="reportFilters" class="row">
-                        <div class="col-md-3">
-                            <label for="statusFilter">Status</label>
-                            <select class="form-control" id="statusFilter">
-                                <option value="">All</option>
-                                <option value="pending">Pending</option>
-                                <option value="reviewed">Reviewed</option>
-                                <option value="resolved">Resolved</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="dateFilter">Date Range</label>
-                            <select class="form-control" id="dateFilter">
-                                <option value="week">Last Week</option>
-                                <option value="month" selected>Last Month</option>
-                                <option value="year">Last Year</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="searchFilter">Search</label>
-                            <input type="text" class="form-control" id="searchFilter" placeholder="Search reports...">
-                        </div>
-                        <div class="col-md-3">
-                            <label>&nbsp;</label>
-                            <button type="submit" class="btn btn-primary btn-block">Apply Filters</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Reports Table -->
-    <div class="card">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Reporter</th>
-                            <th>Reported User</th>
-                            <th>Reason</th>
-                            <th>Status</th>
-                            <th>Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="reportsTableBody">
-                        <!-- Reports will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
-            <div id="pagination" class="mt-4">
-                <!-- Pagination will be loaded here -->
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Report Action Modal -->
-<div class="modal fade" id="reportActionModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Take Action</h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="reportActionForm">
-                    <input type="hidden" id="reportId">
-                    <div class="form-group">
-                        <label for="reportStatus">Status</label>
-                        <select class="form-control" id="reportStatus" required>
-                            <option value="reviewed">Reviewed</option>
-                            <option value="resolved">Resolved</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="adminAction">Action</label>
-                        <select class="form-control" id="adminAction">
-                            <option value="">No Action</option>
-                            <option value="warn_user">Warn User</option>
-                            <option value="block_user">Block User</option>
-                            <option value="delete_content">Delete Content</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="actionNotes">Notes</label>
-                        <textarea class="form-control" id="actionNotes" rows="3"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="submitAction">Submit</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    let currentPage = 1;
-    const reportsPerPage = 10;
-
-    // Load initial data
-    loadReports();
-    loadStats();
-
-    // Filter form submission
-    document.getElementById('reportFilters').addEventListener('submit', function(e) {
-        e.preventDefault();
-        currentPage = 1;
-        loadReports();
-    });
-
-    // Load reports
-    function loadReports() {
-        const status = document.getElementById('statusFilter').value;
-        const dateRange = document.getElementById('dateFilter').value;
-        const search = document.getElementById('searchFilter').value;
-
-        fetch(`/api/reports?page=${currentPage}&status=${status}&period=${dateRange}&search=${search}`)
-            .then(response => response.json())
-            .then(data => {
-                const tbody = document.getElementById('reportsTableBody');
-                tbody.innerHTML = '';
-
-                data.reports.forEach(report => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${report.id}</td>
-                        <td>${report.reporter_name}</td>
-                        <td>${report.reported_user_name}</td>
-                        <td>${report.reason}</td>
-                        <td><span class="badge badge-${getStatusBadgeClass(report.status)}">${report.status}</span></td>
-                        <td>${new Date(report.created_at).toLocaleDateString()}</td>
-                        <td>
-                            <button class="btn btn-sm btn-primary" onclick="viewReport(${report.id})">View</button>
-                            ${report.status === 'pending' ? 
-                                `<button class="btn btn-sm btn-success" onclick="showActionModal(${report.id})">Take Action</button>` : 
-                                ''}
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
-
-                // Update pagination
-                updatePagination(data.total);
-            })
-            .catch(error => console.error('Error loading reports:', error));
-    }
-
-    // Load statistics
-    function loadStats() {
-        fetch('/api/reports/stats')
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('totalReports').textContent = data.total;
-                document.getElementById('pendingReports').textContent = data.pending;
-                document.getElementById('resolvedReports').textContent = data.resolved;
-                document.getElementById('monthlyReports').textContent = data.monthly;
-            })
-            .catch(error => console.error('Error loading stats:', error));
-    }
-
-    // Update pagination
-    function updatePagination(total) {
-        const totalPages = Math.ceil(total / reportsPerPage);
-        const pagination = document.getElementById('pagination');
-        pagination.innerHTML = '';
-
-        if (totalPages > 1) {
-            const ul = document.createElement('ul');
-            ul.className = 'pagination justify-content-center';
-
-            // Previous button
-            ul.innerHTML += `
-                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-                    <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Previous</a>
-                </li>
-            `;
-
-            // Page numbers
-            for (let i = 1; i <= totalPages; i++) {
-                ul.innerHTML += `
-                    <li class="page-item ${currentPage === i ? 'active' : ''}">
-                        <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
-                    </li>
-                `;
-            }
-
-            // Next button
-            ul.innerHTML += `
-                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-                    <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a>
-                </li>
-            `;
-
-            pagination.appendChild(ul);
-        }
-    }
-
-    // Change page
-    window.changePage = function(page) {
-        currentPage = page;
-        loadReports();
-    };
-
-    // Show action modal
-    window.showActionModal = function(reportId) {
-        document.getElementById('reportId').value = reportId;
-        $('#reportActionModal').modal('show');
-    };
-
-    // Submit action
-    document.getElementById('submitAction').addEventListener('click', function() {
-        const reportId = document.getElementById('reportId').value;
-        const status = document.getElementById('reportStatus').value;
-        const action = document.getElementById('adminAction').value;
-        const notes = document.getElementById('actionNotes').value;
-
-        fetch('/api/reports/update', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                report_id: reportId,
-                status: status,
-                admin_action: action,
-                admin_notes: notes
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message) {
-                $('#reportActionModal').modal('hide');
-                loadReports();
-                loadStats();
-                showAlert('success', 'Report updated successfully');
-            } else {
-                showAlert('danger', data.error || 'Failed to update report');
-            }
-        })
-        .catch(error => {
-            console.error('Error updating report:', error);
-            showAlert('danger', 'An error occurred while updating the report');
-        });
-    });
-
-    // Helper function to get status badge class
-    function getStatusBadgeClass(status) {
-        switch (status) {
-            case 'pending': return 'warning';
-            case 'reviewed': return 'info';
-            case 'resolved': return 'success';
-            default: return 'secondary';
-        }
-    }
-
-    // Helper function to show alerts
-    function showAlert(type, message) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="close" data-dismiss="alert">
-                <span>&times;</span>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Management - UniSocial Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/assets/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/admin">UniSocial Admin</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
             </button>
-        `;
-        document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.card'));
-        setTimeout(() => alertDiv.remove(), 5000);
-    }
-});
-</script> 
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/users">Users</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/admin/reports">Reports</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <?php if (isset($_SESSION['flash'])): ?>
+            <div class="alert alert-<?= $_SESSION['flash']['type'] ?> alert-dismissible fade show">
+                <?= $_SESSION['flash']['message'] ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php unset($_SESSION['flash']); ?>
+        <?php endif; ?>
+
+        <!-- Status Filter -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="btn-group" role="group">
+                    <a href="/admin/reports" class="btn btn-outline-primary <?= !$status ? 'active' : '' ?>">
+                        All
+                    </a>
+                    <a href="/admin/reports?status=pending" class="btn btn-outline-primary <?= $status === 'pending' ? 'active' : '' ?>">
+                        Pending
+                    </a>
+                    <a href="/admin/reports?status=resolved" class="btn btn-outline-primary <?= $status === 'resolved' ? 'active' : '' ?>">
+                        Resolved
+                    </a>
+                    <a href="/admin/reports?status=dismissed" class="btn btn-outline-primary <?= $status === 'dismissed' ? 'active' : '' ?>">
+                        Dismissed
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports List -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Reports</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Reporter</th>
+                                <th>Reported User</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($reports as $report): ?>
+                                <tr>
+                                    <td><?= $report['id'] ?></td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <img src="<?= $report['reporter_image'] ?: '/assets/images/default-avatar.png' ?>" 
+                                                 alt="Reporter" 
+                                                 class="rounded-circle me-2"
+                                                 style="width: 32px; height: 32px; object-fit: cover;">
+                                            <?= htmlspecialchars($report['reporter_username']) ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <img src="<?= $report['reported_image'] ?: '/assets/images/default-avatar.png' ?>" 
+                                                 alt="Reported" 
+                                                 class="rounded-circle me-2"
+                                                 style="width: 32px; height: 32px; object-fit: cover;">
+                                            <?= htmlspecialchars($report['reported_username']) ?>
+                                        </div>
+                                    </td>
+                                    <td><?= htmlspecialchars($report['reason']) ?></td>
+                                    <td>
+                                        <span class="badge bg-<?= $report['status'] === 'pending' ? 'warning' : 
+                                                              ($report['status'] === 'resolved' ? 'success' : 'secondary') ?>">
+                                            <?= ucfirst($report['status']) ?>
+                                        </span>
+                                    </td>
+                                    <td><?= date('M j, Y H:i', strtotime($report['created_at'])) ?></td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-info" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#viewModal<?= $report['id'] ?>">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <?php if ($report['status'] === 'pending'): ?>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-success" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#resolveModal<?= $report['id'] ?>">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-danger" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#dismissModal<?= $report['id'] ?>">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <!-- View Modal -->
+                                        <div class="modal fade" id="viewModal<?= $report['id'] ?>" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Report Details</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <dl class="row">
+                                                            <dt class="col-sm-4">Reporter</dt>
+                                                            <dd class="col-sm-8"><?= htmlspecialchars($report['reporter_username']) ?></dd>
+                                                            
+                                                            <dt class="col-sm-4">Reported User</dt>
+                                                            <dd class="col-sm-8"><?= htmlspecialchars($report['reported_username']) ?></dd>
+                                                            
+                                                            <dt class="col-sm-4">Reason</dt>
+                                                            <dd class="col-sm-8"><?= htmlspecialchars($report['reason']) ?></dd>
+                                                            
+                                                            <dt class="col-sm-4">Status</dt>
+                                                            <dd class="col-sm-8">
+                                                                <span class="badge bg-<?= $report['status'] === 'pending' ? 'warning' : 
+                                                                                      ($report['status'] === 'resolved' ? 'success' : 'secondary') ?>">
+                                                                    <?= ucfirst($report['status']) ?>
+                                                                </span>
+                                                            </dd>
+                                                            
+                                                            <dt class="col-sm-4">Date</dt>
+                                                            <dd class="col-sm-8"><?= date('M j, Y H:i', strtotime($report['created_at'])) ?></dd>
+                                                            
+                                                            <?php if ($report['admin_id']): ?>
+                                                                <dt class="col-sm-4">Handled By</dt>
+                                                                <dd class="col-sm-8"><?= htmlspecialchars($report['admin_username']) ?></dd>
+                                                                
+                                                                <dt class="col-sm-4">Handled At</dt>
+                                                                <dd class="col-sm-8"><?= date('M j, Y H:i', strtotime($report['updated_at'])) ?></dd>
+                                                            <?php endif; ?>
+                                                        </dl>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Resolve Modal -->
+                                        <div class="modal fade" id="resolveModal<?= $report['id'] ?>" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Resolve Report</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form action="/admin/updateReport" method="POST">
+                                                        <div class="modal-body">
+                                                            <input type="hidden" name="report_id" value="<?= $report['id'] ?>">
+                                                            <input type="hidden" name="status" value="resolved">
+                                                            <p>Are you sure you want to mark this report as resolved?</p>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                            <button type="submit" class="btn btn-success">Resolve</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Dismiss Modal -->
+                                        <div class="modal fade" id="dismissModal<?= $report['id'] ?>" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Dismiss Report</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form action="/admin/updateReport" method="POST">
+                                                        <div class="modal-body">
+                                                            <input type="hidden" name="report_id" value="<?= $report['id'] ?>">
+                                                            <input type="hidden" name="status" value="dismissed">
+                                                            <p>Are you sure you want to dismiss this report?</p>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                            <button type="submit" class="btn btn-danger">Dismiss</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

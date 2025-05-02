@@ -7,15 +7,17 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\Post;
-use App\Models\Comment;
+use App\Models\User;
 use App\Models\Like;
+use App\Models\Comment;
 use App\Models\Notification;
 use App\Services\FileUploadService;
 
 class PostController extends Controller {
     private $postModel;
-    private $commentModel;
+    private $userModel;
     private $likeModel;
+    private $commentModel;
     private $notificationModel;
     private $fileUpload;
 
@@ -25,33 +27,30 @@ class PostController extends Controller {
     public function __construct($pdo) {
         parent::__construct($pdo);
         $this->postModel = new Post($pdo);
-        $this->commentModel = new Comment();
-        $this->likeModel = new Like();
+        $this->userModel = new User($pdo);
+        $this->likeModel = new Like($pdo);
+        $this->commentModel = new Comment($pdo);
         $this->notificationModel = new Notification();
         $this->fileUpload = new FileUploadService();
     }
 
     /**
-     * Show the feed page
+     * Display feed page
      */
     public function index() {
-        // Get posts for feed
-        $posts = $this->postModel->getAllPosts(10, 0);
+        $this->requireLogin();
         
-        // Get suggested friends
-        $suggestedFriends = $this->getSuggestedFriends();
+        $userId = $this->getCurrentUserId();
+        $page = $this->get('page', 1);
+        $limit = 10;
+        $offset = ($page - 1) * $limit;
         
-        // Get trending topics
-        $trendingTopics = $this->getTrendingTopics();
+        $posts = $this->postModel->getFeed($userId, $limit, $offset);
         
-        // Get unread notifications count
-        $unreadNotifications = $this->getUnreadNotificationsCount();
-        
-        return $this->view('feed/index', [
+        $this->render('posts/index', [
             'posts' => $posts,
-            'suggestedFriends' => $suggestedFriends,
-            'trendingTopics' => $trendingTopics,
-            'unreadNotifications' => $unreadNotifications
+            'page' => $page,
+            'hasMore' => count($posts) === $limit
         ]);
     }
 
@@ -59,208 +58,165 @@ class PostController extends Controller {
      * Create a new post
      */
     public function create() {
-        // Validate request
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            return $this->json(['success' => false, 'message' => 'Invalid request method'], 405);
+        $this->requireLogin();
+        
+        if (!$this->post()) {
+            $this->redirect('/feed');
         }
         
-        // Get input data
-        $content = $_POST['content'] ?? '';
-        $image = $_FILES['image'] ?? null;
+        $userId = $this->getCurrentUserId();
+        $content = $this->post('content');
+        $locationLat = $this->post('location_lat');
+        $locationLng = $this->post('location_lng');
         
-        // Validate content
-        if (empty($content)) {
-            return $this->json(['success' => false, 'message' => 'Post content is required'], 400);
-        }
-        
-        // Handle image upload if present
-        $imageUrl = null;
-        if ($image && $image['error'] === UPLOAD_ERR_OK) {
-            $imageUrl = $this->fileUpload->uploadImage($image, 'posts');
-            if (!$imageUrl) {
-                return $this->json(['success' => false, 'message' => 'Error uploading image'], 500);
+        // Handle image upload
+        $image = null;
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = 'public/uploads/posts/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+            
+            $extension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+            $filename = uniqid() . '.' . $extension;
+            $filepath = $uploadDir . $filename;
+            
+            if (move_uploaded_file($_FILES['image']['tmp_name'], $filepath)) {
+                $image = '/' . $filepath;
             }
         }
         
-        // Create post
-        $postId = $this->postModel->create(
-            $_SESSION['user_id'],
-            $content,
-            $imageUrl
-        );
+        $data = [
+            'user_id' => $userId,
+            'content' => $content,
+            'image' => $image,
+            'location_lat' => $locationLat,
+            'location_lng' => $locationLng
+        ];
         
-        if (!$postId) {
-            return $this->json(['success' => false, 'message' => 'Error creating post'], 500);
-        }
-        
-        // Get created post with user info
-        $post = $this->postModel->getById($postId);
-        
-        return $this->json([
-            'success' => true,
-            'data' => $post
-        ]);
-    }
-
-    /**
-     * Update a post
-     */
-    public function update($id) {
-        // Validate request
-        if ($_SERVER['REQUEST_METHOD'] !== 'PUT') {
-            return $this->json(['success' => false, 'message' => 'Invalid request method'], 405);
-        }
-        
-        // Get input data
-        parse_str(file_get_contents('php://input'), $data);
-        $content = $data['content'] ?? '';
-        
-        // Validate content
-        if (empty($content)) {
-            return $this->json(['success' => false, 'message' => 'Post content is required'], 400);
-        }
-        
-        // Get post
-        $post = $this->postModel->getById($id);
-        
-        // Check if post exists and user owns it
-        if (!$post || $post['user_id'] !== $_SESSION['user_id']) {
-            return $this->json(['success' => false, 'message' => 'Post not found or unauthorized'], 404);
-        }
-        
-        // Update post
-        $success = $this->postModel->update($id, ['content' => $content]);
-        
-        if (!$success) {
-            return $this->json(['success' => false, 'message' => 'Error updating post'], 500);
-        }
-        
-        return $this->json(['success' => true]);
-    }
-
-    /**
-     * Delete a post
-     */
-    public function delete($id) {
-        // Validate request
-        if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
-            return $this->json(['success' => false, 'message' => 'Invalid request method'], 405);
-        }
-        
-        // Get post
-        $post = $this->postModel->getById($id);
-        
-        // Check if post exists and user owns it
-        if (!$post || $post['user_id'] !== $_SESSION['user_id']) {
-            return $this->json(['success' => false, 'message' => 'Post not found or unauthorized'], 404);
-        }
-        
-        // Delete post image if exists
-        if ($post['image_url']) {
-            $this->fileUpload->deleteImage($post['image_url']);
-        }
-        
-        // Delete post
-        $success = $this->postModel->delete($id);
-        
-        if (!$success) {
-            return $this->json(['success' => false, 'message' => 'Error deleting post'], 500);
-        }
-        
-        return $this->json(['success' => true]);
-    }
-
-    /**
-     * Like/Unlike a post
-     */
-    public function like($id) {
-        // Validate request
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            return $this->json(['success' => false, 'message' => 'Invalid request method'], 405);
-        }
-        
-        // Get post
-        $post = $this->postModel->getById($id);
-        
-        // Check if post exists
-        if (!$post) {
-            return $this->json(['success' => false, 'message' => 'Post not found'], 404);
-        }
-        
-        // Check if user already liked the post
-        $isLiked = $this->postModel->isLiked($id, $_SESSION['user_id']);
-        
-        if ($isLiked) {
-            // Unlike post
-            $success = $this->postModel->unlikePost($id, $_SESSION['user_id']);
+        if ($this->postModel->create($data)) {
+            $this->setFlash('success', 'Post created successfully');
         } else {
-            // Like post
-            $success = $this->postModel->likePost($id, $_SESSION['user_id']);
+            $this->setFlash('error', 'Failed to create post');
         }
         
-        if (!$success) {
-            return $this->json(['success' => false, 'message' => 'Error updating like status'], 500);
-        }
-        
-        return $this->json(['success' => true]);
+        $this->redirect('/feed');
     }
 
     /**
-     * Get comments for a post
+     * Like a post
      */
-    public function getComments($id) {
-        // Validate request
-        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            return $this->json(['success' => false, 'message' => 'Invalid request method'], 405);
+    public function like($postId) {
+        $this->requireLogin();
+        
+        if (!$this->post()) {
+            $this->jsonResponse(['error' => 'Invalid request'], 400);
+            return;
         }
         
-        // Get comments
-        $comments = $this->postModel->getComments($id);
+        $userId = $this->getCurrentUserId();
         
-        return $this->json([
-            'success' => true,
-            'data' => $comments
-        ]);
+        try {
+            if ($this->likeModel->toggleLike($postId, $userId)) {
+                $this->jsonResponse(['success' => true]);
+            } else {
+                $this->jsonResponse(['error' => 'Failed to like post'], 500);
+            }
+        } catch (\Exception $e) {
+            $this->jsonResponse(['error' => $e->getMessage()], 500);
+        }
     }
 
     /**
      * Add a comment to a post
      */
-    public function addComment($id) {
-        // Validate request
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            return $this->json(['success' => false, 'message' => 'Invalid request method'], 405);
+    public function comment($postId) {
+        $this->requireLogin();
+        
+        if (!$this->post()) {
+            $this->jsonResponse(['error' => 'Invalid request'], 400);
+            return;
         }
         
-        // Get input data
-        $content = $_POST['content'] ?? '';
+        $userId = $this->getCurrentUserId();
+        $content = $this->post('content');
         
-        // Validate content
-        if (empty($content)) {
-            return $this->json(['success' => false, 'message' => 'Comment content is required'], 400);
+        try {
+            if ($this->commentModel->create([
+                'post_id' => $postId,
+                'user_id' => $userId,
+                'content' => $content
+            ])) {
+                $comment = $this->commentModel->getLatest($postId);
+                $this->jsonResponse([
+                    'success' => true,
+                    'comment' => $comment
+                ]);
+            } else {
+                $this->jsonResponse(['error' => 'Failed to add comment'], 500);
+            }
+        } catch (\Exception $e) {
+            $this->jsonResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Delete a post
+     */
+    public function delete($postId) {
+        $this->requireLogin();
+        
+        if (!$this->post()) {
+            $this->jsonResponse(['error' => 'Invalid request'], 400);
+            return;
         }
         
-        // Get post
-        $post = $this->postModel->getById($id);
+        $userId = $this->getCurrentUserId();
+        $post = $this->postModel->getById($postId, $userId);
         
-        // Check if post exists
         if (!$post) {
-            return $this->json(['success' => false, 'message' => 'Post not found'], 404);
+            $this->jsonResponse(['error' => 'Post not found'], 404);
+            return;
         }
         
-        // Add comment
-        $commentId = $this->postModel->addComment($id, $_SESSION['user_id'], $content);
-        
-        if (!$commentId) {
-            return $this->json(['success' => false, 'message' => 'Error adding comment'], 500);
+        if ($post['user_id'] !== $userId && !$this->isAdmin()) {
+            $this->jsonResponse(['error' => 'Unauthorized'], 403);
+            return;
         }
         
-        // Get created comment with user info
-        $comment = $this->postModel->getCommentById($commentId);
+        try {
+            if ($this->postModel->delete($postId)) {
+                $this->jsonResponse(['success' => true]);
+            } else {
+                $this->jsonResponse(['error' => 'Failed to delete post'], 500);
+            }
+        } catch (\Exception $e) {
+            $this->jsonResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get more posts for infinite scroll
+     */
+    public function loadMore() {
+        $this->requireLogin();
         
-        return $this->json([
+        if (!$this->get()) {
+            $this->jsonResponse(['error' => 'Invalid request'], 400);
+            return;
+        }
+        
+        $userId = $this->getCurrentUserId();
+        $page = $this->get('page', 1);
+        $limit = 10;
+        $offset = ($page - 1) * $limit;
+        
+        $posts = $this->postModel->getFeed($userId, $limit, $offset);
+        
+        $this->jsonResponse([
             'success' => true,
-            'data' => $comment
+            'posts' => $posts,
+            'hasMore' => count($posts) === $limit
         ]);
     }
 

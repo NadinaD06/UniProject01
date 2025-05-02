@@ -8,11 +8,14 @@ namespace App\Controllers;
 use App\Models\User;
 use App\Models\Post;
 use App\Models\Report;
+use App\Models\Block;
+use App\Core\Controller;
 
 class AdminController extends Controller {
     private $userModel;
     private $postModel;
     private $reportModel;
+    private $blockModel;
 
     /**
      * Constructor
@@ -24,23 +27,21 @@ class AdminController extends Controller {
         $this->userModel = new User();
         $this->postModel = new Post();
         $this->reportModel = new Report();
+        $this->blockModel = new Block();
     }
 
     /**
      * Show admin dashboard
      */
     public function index() {
-        // Get statistics
-        $userCount = $this->userModel->count();
-        $postCount = $this->postModel->count();
-        $pendingReports = $this->reportModel->getPendingReports(1, 5);
-        $postStats = $this->postModel->getStats('week');
-
-        $this->render('admin/dashboard', [
-            'userCount' => $userCount,
-            'postCount' => $postCount,
-            'pendingReports' => $pendingReports,
-            'postStats' => $postStats
+        $stats = [
+            'users' => $this->userModel->getCount(),
+            'reports' => $this->reportModel->getStats(),
+            'blocks' => $this->blockModel->getCount()
+        ];
+        
+        $this->render('admin/index', [
+            'stats' => $stats
         ]);
     }
 
@@ -48,11 +49,8 @@ class AdminController extends Controller {
      * Show user management page
      */
     public function users() {
-        $page = (int) $this->get('page', 1);
-        $perPage = 20;
-
-        $users = $this->userModel->paginate($page, $perPage);
-
+        $users = $this->userModel->getAll();
+        
         $this->render('admin/users', [
             'users' => $users
         ]);
@@ -62,41 +60,51 @@ class AdminController extends Controller {
      * Delete user
      */
     public function deleteUser() {
-        if (!$this->post()) {
-            $this->json(['error' => 'Invalid request method'], 405);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('HTTP/1.1 405 Method Not Allowed');
+            exit;
         }
-
-        $userId = (int) $this->post('user_id');
+        
+        $userId = $_POST['user_id'] ?? null;
+        
         if (!$userId) {
-            $this->json(['error' => 'Invalid user ID'], 400);
+            header('HTTP/1.1 400 Bad Request');
+            exit;
         }
-
-        // Don't allow deleting self
-        if ($userId === $this->getCurrentUserId()) {
-            $this->json(['error' => 'Cannot delete own account'], 403);
+        
+        $success = $this->userModel->delete($userId);
+        
+        if ($success) {
+            $_SESSION['flash'] = [
+                'type' => 'success',
+                'message' => 'User deleted successfully'
+            ];
+        } else {
+            $_SESSION['flash'] = [
+                'type' => 'error',
+                'message' => 'Failed to delete user'
+            ];
         }
-
-        try {
-            $this->userModel->delete($userId);
-            $this->json(['success' => true]);
-        } catch (\Exception $e) {
-            $this->json(['error' => 'Failed to delete user'], 500);
-        }
+        
+        header('Location: /admin/users');
+        exit;
     }
 
     /**
      * Show reports management page
      */
     public function reports() {
-        $status = $this->get('status', Report::STATUS_PENDING);
-        $page = (int) $this->get('page', 1);
-        $perPage = 20;
-
-        $reports = $this->reportModel->getReportsByStatus($status, $page, $perPage);
-
+        $status = $_GET['status'] ?? null;
+        $page = $_GET['page'] ?? 1;
+        $limit = 20;
+        $offset = ($page - 1) * $limit;
+        
+        $reports = $this->reportModel->getForAdmin($status, $limit, $offset);
+        
         $this->render('admin/reports', [
             'reports' => $reports,
-            'currentStatus' => $status
+            'status' => $status,
+            'page' => $page
         ]);
     }
 
@@ -104,22 +112,25 @@ class AdminController extends Controller {
      * Handle report action
      */
     public function handleReport() {
-        if (!$this->post()) {
-            $this->json(['error' => 'Invalid request method'], 405);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('HTTP/1.1 405 Method Not Allowed');
+            exit;
         }
-
-        $reportId = (int) $this->post('report_id');
-        $action = $this->post('action');
-        $notes = $this->post('notes');
-
+        
+        $reportId = $_POST['report_id'] ?? null;
+        $action = $_POST['action'] ?? null;
+        $notes = $_POST['notes'] ?? null;
+        
         if (!$reportId || !$action) {
-            $this->json(['error' => 'Missing required fields'], 400);
+            header('HTTP/1.1 400 Bad Request');
+            exit;
         }
-
+        
         // Get report
         $report = $this->reportModel->find($reportId);
         if (!$report) {
-            $this->json(['error' => 'Report not found'], 404);
+            header('HTTP/1.1 404 Not Found');
+            exit;
         }
 
         try {
@@ -152,10 +163,19 @@ class AdminController extends Controller {
                     break;
             }
 
-            $this->json(['success' => true]);
+            $_SESSION['flash'] = [
+                'type' => 'success',
+                'message' => 'Report status updated successfully'
+            ];
         } catch (\Exception $e) {
-            $this->json(['error' => 'Failed to process report'], 500);
+            $_SESSION['flash'] = [
+                'type' => 'error',
+                'message' => 'Failed to process report'
+            ];
         }
+        
+        header('Location: /admin/reports');
+        exit;
     }
 
     /**
@@ -198,5 +218,40 @@ class AdminController extends Controller {
             'stats' => $stats,
             'period' => $period
         ]);
+    }
+
+    /**
+     * Handle user role update
+     */
+    public function updateUserRole() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('HTTP/1.1 405 Method Not Allowed');
+            exit;
+        }
+        
+        $userId = $_POST['user_id'] ?? null;
+        $role = $_POST['role'] ?? null;
+        
+        if (!$userId || !$role) {
+            header('HTTP/1.1 400 Bad Request');
+            exit;
+        }
+        
+        $success = $this->userModel->updateRole($userId, $role);
+        
+        if ($success) {
+            $_SESSION['flash'] = [
+                'type' => 'success',
+                'message' => 'User role updated successfully'
+            ];
+        } else {
+            $_SESSION['flash'] = [
+                'type' => 'error',
+                'message' => 'Failed to update user role'
+            ];
+        }
+        
+        header('Location: /admin/users');
+        exit;
     }
 } 
