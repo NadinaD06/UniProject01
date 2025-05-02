@@ -50,10 +50,26 @@ class Router {
                     [$controller, $action] = $route['callback'];
                     $controller = "App\\Controllers\\{$controller}";
                     $controller = new $controller($this->db);
-                    return call_user_func_array([$controller, $action], $matches);
+                    $response = call_user_func_array([$controller, $action], $matches);
+                    
+                    // Handle the response
+                    if (is_string($response)) {
+                        echo $response;
+                    } elseif (is_array($response)) {
+                        header('Content-Type: application/json');
+                        echo json_encode($response);
+                    }
+                    return;
                 }
 
-                return call_user_func_array($route['callback'], $matches);
+                $response = call_user_func_array($route['callback'], $matches);
+                if (is_string($response)) {
+                    echo $response;
+                } elseif (is_array($response)) {
+                    header('Content-Type: application/json');
+                    echo json_encode($response);
+                }
+                return;
             }
         }
 

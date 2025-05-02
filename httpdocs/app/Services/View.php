@@ -6,7 +6,7 @@ class View {
     private $layoutPath;
     
     public function __construct() {
-        $this->viewPath = dirname(__DIR__, 2) . '/app/Views/';
+        $this->viewPath = dirname(__DIR__, 2) . '/Views/';
         $this->layoutPath = $this->viewPath . 'layouts/';
     }
     

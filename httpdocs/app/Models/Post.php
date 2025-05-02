@@ -14,14 +14,14 @@ class Post extends Model {
      * Create a new post
      */
     public function create($data) {
-        $sql = "INSERT INTO posts (user_id, content, image, location_lat, location_lng, created_at) 
-                VALUES (:user_id, :content, :image, :location_lat, :location_lng, NOW())";
+        $sql = "INSERT INTO posts (user_id, content, image_url, location_lat, location_lng, created_at) 
+                VALUES (:user_id, :content, :image_url, :location_lat, :location_lng, NOW())";
         
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([
             'user_id' => $data['user_id'],
             'content' => $data['content'],
-            'image' => $data['image'] ?? null,
+            'image_url' => $data['image'] ?? null,
             'location_lat' => $data['location_lat'] ?? null,
             'location_lng' => $data['location_lng'] ?? null
         ]);
