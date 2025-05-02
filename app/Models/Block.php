@@ -18,22 +18,24 @@ class Block extends Model {
      * Block a user
      * @param int $blockerId User doing the blocking
      * @param int $blockedId User being blocked
+     * @param string $reason Reason for blocking
      * @return bool Success status
      */
-    public function blockUser($blockerId, $blockedId) {
-        try {
-            // Check if already blocked
-            if ($this->isBlocked($blockerId, $blockedId)) {
-                return false;
-            }
-
-            return (bool) $this->create([
-                'blocker_id' => $blockerId,
-                'blocked_id' => $blockedId
-            ]);
-        } catch (\Exception $e) {
+    public function blockUser($blockerId, $blockedId, $reason = null) {
+        // Check if already blocked
+        if ($this->isBlocked($blockerId, $blockedId)) {
             return false;
         }
+        
+        $sql = "INSERT INTO blocks (blocker_id, blocked_id, reason, expires_at, created_at) 
+                VALUES (:blocker_id, :blocked_id, :reason, DATE_ADD(NOW(), INTERVAL 30 DAY), NOW())";
+        
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            'blocker_id' => $blockerId,
+            'blocked_id' => $blockedId,
+            'reason' => $reason
+        ]);
     }
 
     /**
@@ -43,11 +45,15 @@ class Block extends Model {
      * @return bool Success status
      */
     public function unblockUser($blockerId, $blockedId) {
-        return (bool) $this->db->delete(
-            $this->table,
-            'blocker_id = ? AND blocked_id = ?',
-            [$blockerId, $blockedId]
-        );
+        $sql = "DELETE FROM blocks 
+                WHERE blocker_id = :blocker_id 
+                AND blocked_id = :blocked_id";
+        
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            'blocker_id' => $blockerId,
+            'blocked_id' => $blockedId
+        ]);
     }
 
     /**
@@ -57,109 +63,62 @@ class Block extends Model {
      * @return bool
      */
     public function isBlocked($blockerId, $blockedId) {
-        return (bool) $this->db->fetch(
-            "SELECT 1 FROM {$this->table} 
-            WHERE blocker_id = ? AND blocked_id = ?",
-            [$blockerId, $blockedId]
-        );
+        $sql = "SELECT COUNT(*) FROM blocks 
+                WHERE blocker_id = :blocker_id 
+                AND blocked_id = :blocked_id
+                AND (expires_at IS NULL OR expires_at > NOW())";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'blocker_id' => $blockerId,
+            'blocked_id' => $blockedId
+        ]);
+        return (bool) $stmt->fetchColumn();
     }
 
     /**
-     * Get all users blocked by a user
+     * Get all blocks for a user
      * @param int $userId User ID
-     * @return array List of blocked users
+     * @return array List of blocks
      */
-    public function getBlockedUsers($userId) {
-        return $this->db->fetchAll(
-            "SELECT u.id, u.username, u.email, b.created_at as blocked_at
-            FROM {$this->table} b
-            JOIN users u ON b.blocked_id = u.id
-            WHERE b.blocker_id = ?
-            ORDER BY b.created_at DESC",
-            [$userId]
-        );
+    public function getUserBlocks($userId) {
+        $sql = "SELECT b.*, u.username as blocked_username 
+                FROM blocks b
+                JOIN users u ON b.blocked_id = u.id
+                WHERE b.blocker_id = :user_id
+                AND (b.expires_at IS NULL OR b.expires_at > NOW())
+                ORDER BY b.created_at DESC";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['user_id' => $userId]);
+        return $stmt->fetchAll();
     }
 
     /**
-     * Get users who blocked a user
+     * Get all users who blocked a user
      * @param int $userId User ID
      * @return array List of users who blocked
      */
-    public function getBlockerUsers($userId) {
-        return $this->db->fetchAll(
-            "SELECT u.id, u.username, u.email, b.created_at as blocked_at
-            FROM {$this->table} b
-            JOIN users u ON b.blocker_id = u.id
-            WHERE b.blocked_id = ?
-            ORDER BY b.created_at DESC",
-            [$userId]
-        );
+    public function getBlockedBy($userId) {
+        $sql = "SELECT b.*, u.username as blocker_username 
+                FROM blocks b
+                JOIN users u ON b.blocker_id = u.id
+                WHERE b.blocked_id = :user_id
+                AND (b.expires_at IS NULL OR b.expires_at > NOW())
+                ORDER BY b.created_at DESC";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['user_id' => $userId]);
+        return $stmt->fetchAll();
     }
 
     /**
-     * Block a user
+     * Clean up expired blocks
+     * @return bool Success status
      */
-    public function block($userId, $blockedId) {
-        $sql = "INSERT INTO blocks (user_id, blocked_id, created_at) VALUES (:user_id, :blocked_id, NOW())";
+    public function cleanupExpiredBlocks() {
+        $sql = "DELETE FROM blocks WHERE expires_at < NOW()";
         $stmt = $this->db->prepare($sql);
-        return $stmt->execute([
-            'user_id' => $userId,
-            'blocked_id' => $blockedId
-        ]);
-    }
-    
-    /**
-     * Unblock a user
-     */
-    public function unblock($userId, $blockedId) {
-        $sql = "DELETE FROM blocks WHERE user_id = :user_id AND blocked_id = :blocked_id";
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute([
-            'user_id' => $userId,
-            'blocked_id' => $blockedId
-        ]);
-    }
-    
-    /**
-     * Check if user is blocked
-     */
-    public function isBlocked($userId, $blockedId) {
-        $sql = "SELECT id FROM blocks WHERE user_id = :user_id AND blocked_id = :blocked_id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([
-            'user_id' => $userId,
-            'blocked_id' => $blockedId
-        ]);
-        return $stmt->fetch() !== false;
-    }
-    
-    /**
-     * Get blocked users
-     */
-    public function getBlockedUsers($userId) {
-        $sql = "SELECT b.*, u.username, u.profile_image
-                FROM blocks b
-                JOIN users u ON b.blocked_id = u.id
-                WHERE b.user_id = :user_id
-                ORDER BY b.created_at DESC";
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute(['user_id' => $userId]);
-        return $stmt->fetchAll();
-    }
-    
-    /**
-     * Get users who blocked me
-     */
-    public function getBlockedBy($userId) {
-        $sql = "SELECT b.*, u.username, u.profile_image
-                FROM blocks b
-                JOIN users u ON b.user_id = u.id
-                WHERE b.blocked_id = :user_id
-                ORDER BY b.created_at DESC";
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute(['user_id' => $userId]);
-        return $stmt->fetchAll();
+        return $stmt->execute();
     }
 } 

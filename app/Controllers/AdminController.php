@@ -9,25 +9,39 @@ use App\Models\User;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\Block;
+use App\Models\AuditLog;
 use App\Core\Controller;
+use App\Services\IdentityDocumentService;
+use App\Services\RateLimiter;
 
 class AdminController extends Controller {
     private $userModel;
     private $postModel;
     private $reportModel;
     private $blockModel;
+    private $auditLogModel;
+    private $identityService;
+    private $rateLimiter;
 
     /**
      * Constructor
      */
     public function __construct() {
         parent::__construct();
-        $this->requireAdmin();
+        
+        // Check if user is admin
+        if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'admin') {
+            header('Location: /login');
+            exit;
+        }
         
         $this->userModel = new User();
         $this->postModel = new Post();
         $this->reportModel = new Report();
         $this->blockModel = new Block();
+        $this->auditLogModel = new AuditLog();
+        $this->identityService = new IdentityDocumentService();
+        $this->rateLimiter = new RateLimiter();
     }
 
     /**
@@ -35,13 +49,16 @@ class AdminController extends Controller {
      */
     public function index() {
         $stats = [
-            'users' => $this->userModel->getCount(),
+            'users' => $this->userModel->getTotalUsers(),
             'reports' => $this->reportModel->getStats(),
-            'blocks' => $this->blockModel->getCount()
+            'blocks' => $this->blockModel->getTotalBlocks()
         ];
         
+        $recentActivity = $this->auditLogModel->getRecent(10);
+        
         $this->render('admin/index', [
-            'stats' => $stats
+            'stats' => $stats,
+            'recentActivity' => $recentActivity
         ]);
     }
 
@@ -49,7 +66,7 @@ class AdminController extends Controller {
      * Show user management page
      */
     public function users() {
-        $users = $this->userModel->getAll();
+        $users = $this->userModel->getAllUsers();
         
         $this->render('admin/users', [
             'users' => $users
@@ -94,12 +111,9 @@ class AdminController extends Controller {
      * Show reports management page
      */
     public function reports() {
-        $status = $_GET['status'] ?? null;
+        $status = $_GET['status'] ?? 'pending';
         $page = $_GET['page'] ?? 1;
-        $limit = 20;
-        $offset = ($page - 1) * $limit;
-        
-        $reports = $this->reportModel->getForAdmin($status, $limit, $offset);
+        $reports = $this->reportModel->getReportsByStatus($status, $page);
         
         $this->render('admin/reports', [
             'reports' => $reports,
@@ -253,5 +267,96 @@ class AdminController extends Controller {
         
         header('Location: /admin/users');
         exit;
+    }
+
+    /**
+     * Request identity document
+     */
+    public function requestIdentityDocument() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            return;
+        }
+        
+        $userId = $_POST['user_id'] ?? null;
+        if (!$userId) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing user ID']);
+            return;
+        }
+        
+        $user = $this->userModel->getById($userId);
+        if (!$user) {
+            http_response_code(404);
+            echo json_encode(['error' => 'User not found']);
+            return;
+        }
+        
+        // Log the action
+        $this->auditLogModel->log(
+            $_SESSION['user']['id'],
+            'request_identity',
+            ['user_id' => $userId]
+        );
+        
+        // Send email notification
+        $this->sendEmail(
+            $user['email'],
+            'Identity Verification Required',
+            'Please upload your identity document for verification.'
+        );
+        
+        echo json_encode(['success' => true]);
+    }
+
+    /**
+     * Handle identity document upload
+     */
+    public function uploadIdentityDocument() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            return;
+        }
+        
+        if (!isset($_FILES['document'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No file uploaded']);
+            return;
+        }
+        
+        try {
+            $result = $this->identityService->uploadDocument(
+                $_FILES['document'],
+                $_SESSION['user']['id']
+            );
+            
+            // Log the action
+            $this->auditLogModel->log(
+                $_SESSION['user']['id'],
+                'upload_identity',
+                ['filename' => $result['filename']]
+            );
+            
+            echo json_encode(['success' => true, 'data' => $result]);
+        } catch (\Exception $e) {
+            http_response_code(400);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Send email notification
+     */
+    private function sendEmail($to, $subject, $message) {
+        $headers = [
+            'From' => 'noreply@unisocial.com',
+            'Reply-To' => 'noreply@unisocial.com',
+            'X-Mailer' => 'PHP/' . phpversion(),
+            'Content-Type' => 'text/html; charset=UTF-8'
+        ];
+        
+        mail($to, $subject, $message, $headers);
     }
 } 
