@@ -73,20 +73,28 @@ class User extends Model {
     }
 
     /**
-     * Create new user
-     * @param array $data User data
-     * @return int User ID
+     * Create a new user
+     * @param array $data User data (username, email, password)
+     * @return int|false User ID on success, false on failure
      */
-    public function createUser($data) {
-        // Hash password
+    public function create($data) {
+        if (!isset($data['password'])) {
+            return false;
+        }
+        
         $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
         
-        // Set default role if not provided
-        if (!isset($data['role'])) {
-            $data['role'] = 'user';
-        }
-
-        return $this->create($data);
+        $sql = "INSERT INTO users (username, email, password, created_at) 
+                VALUES (:username, :email, :password, NOW())";
+        
+        $stmt = $this->db->prepare($sql);
+        $result = $stmt->execute([
+            ':username' => $data['username'],
+            ':email' => $data['email'],
+            ':password' => $data['password']
+        ]);
+        
+        return $result ? $this->db->lastInsertId() : false;
     }
 
     /**
@@ -274,16 +282,17 @@ class User extends Model {
     }
     
     /**
-     * Block a user
-     * 
-     * @param int $blockerId
-     * @param int $blockedId
-     * @return bool
+     * Block user by another user
+     * @param int $blockerId ID of the user doing the blocking
+     * @param int $blockedId ID of the user being blocked
+     * @return int Number of affected rows
      */
-    public function blockUser($blockerId, $blockedId) {
-        $sql = "INSERT INTO user_blocks (blocker_id, blocked_id) VALUES (:blocker_id, :blocked_id)";
-        $stmt = $this->db->prepare($sql);
+    public function blockUserByUser($blockerId, $blockedId) {
+        $sql = "INSERT INTO user_blocks (blocker_id, blocked_id, created_at) 
+                VALUES (:blocker_id, :blocked_id, NOW())
+                ON DUPLICATE KEY UPDATE created_at = NOW()";
         
+        $stmt = $this->db->prepare($sql);
         return $stmt->execute([
             ':blocker_id' => $blockerId,
             ':blocked_id' => $blockedId
@@ -291,16 +300,17 @@ class User extends Model {
     }
     
     /**
-     * Unblock a user
-     * 
-     * @param int $blockerId
-     * @param int $blockedId
-     * @return bool
+     * Unblock user by another user
+     * @param int $blockerId ID of the user doing the unblocking
+     * @param int $blockedId ID of the user being unblocked
+     * @return int Number of affected rows
      */
-    public function unblockUser($blockerId, $blockedId) {
-        $sql = "DELETE FROM user_blocks WHERE blocker_id = :blocker_id AND blocked_id = :blocked_id";
-        $stmt = $this->db->prepare($sql);
+    public function unblockUserByUser($blockerId, $blockedId) {
+        $sql = "DELETE FROM user_blocks 
+                WHERE blocker_id = :blocker_id 
+                AND blocked_id = :blocked_id";
         
+        $stmt = $this->db->prepare($sql);
         return $stmt->execute([
             ':blocker_id' => $blockerId,
             ':blocked_id' => $blockedId
@@ -350,12 +360,6 @@ class User extends Model {
         $stmt = $this->db->prepare("SELECT * FROM users WHERE id = ?");
         $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-    
-    public function create($username, $email, $password) {
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $this->db->prepare("INSERT INTO users (username, email, password, created_at) VALUES (?, ?, ?, NOW())");
-        return $stmt->execute([$username, $email, $hashed_password]);
     }
     
     public function update($id, $data) {
