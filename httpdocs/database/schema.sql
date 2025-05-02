@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS identity_documents (
 ALTER TABLE blocks ADD COLUMN expires_at TIMESTAMP NULL;
 
 -- Add reason column to blocks table
-ALTER TABLE blocks ADD COLUMN reason TEXT NULL;
+ALTER TABLE blocks ADD COLUMN reason TEXT NULL; 
 
 -- Create users table
 CREATE TABLE IF NOT EXISTS users (

@@ -348,7 +348,7 @@ function showAlert(message, type = 'info') {
     setTimeout(() => {
         $('.alert').alert('close');
     }, 5000);
-}
+} 
 
 // Feed-specific JavaScript
 

@@ -33,14 +33,14 @@
         <nav class="main-nav">
             <div class="container">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div class="nav-brand">
-                        <a href="/"><?php echo htmlspecialchars($config['APP_NAME']); ?></a>
-                    </div>
-                    
-                    <div class="nav-links">
-                        <?php if (isset($_SESSION['user_id'])): ?>
-                            <a href="/feed">Feed</a>
-                            <a href="/messages">Messages</a>
+            <div class="nav-brand">
+                <a href="/"><?php echo htmlspecialchars($config['APP_NAME']); ?></a>
+            </div>
+            
+            <div class="nav-links">
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <a href="/feed">Feed</a>
+                    <a href="/messages">Messages</a>
                             <a href="/notifications">
                                 Notifications
                                 <?php if (isset($unreadNotifications) && $unreadNotifications > 0): ?>
@@ -63,10 +63,10 @@
                                     <li><a class="dropdown-item" href="/logout">Logout</a></li>
                                 </ul>
                             </div>
-                        <?php else: ?>
-                            <a href="/login">Login</a>
-                            <a href="/register">Register</a>
-                        <?php endif; ?>
+                <?php else: ?>
+                    <a href="/login">Login</a>
+                    <a href="/register">Register</a>
+                <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -89,16 +89,16 @@
     
     <footer>
         <div class="container">
-            <div class="footer-content">
-                <div class="footer-links">
-                    <a href="/about">About</a>
-                    <a href="/terms">Terms</a>
-                    <a href="/privacy">Privacy</a>
-                    <a href="/help">Help</a>
-                    <a href="/contact">Contact</a>
-                </div>
-                <div class="footer-copyright">
-                    &copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars($config['APP_NAME']); ?>. All rights reserved.
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="/about">About</a>
+                <a href="/terms">Terms</a>
+                <a href="/privacy">Privacy</a>
+                <a href="/help">Help</a>
+                <a href="/contact">Contact</a>
+            </div>
+            <div class="footer-copyright">
+                &copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars($config['APP_NAME']); ?>. All rights reserved.
                 </div>
             </div>
         </div>

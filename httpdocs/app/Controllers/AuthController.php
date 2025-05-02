@@ -41,22 +41,22 @@ class AuthController extends Controller {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
             $password = $_POST['password'];
-            
+
             try {
                 $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ?");
                 $stmt->execute([$email]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
-                
+
                 if ($user && password_verify($password, $user['password'])) {
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['username'] = $user['username'];
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['username'] = $user['username'];
                     $_SESSION['is_admin'] = $user['is_admin'];
                     
                     return $this->redirect('/home');
-                } else {
+            } else {
                     $_SESSION['errors'] = ['Invalid email or password'];
                     return $this->redirect('/login');
-                }
+            }
             } catch (PDOException $e) {
                 $_SESSION['errors'] = ['An error occurred. Please try again.'];
                 return $this->redirect('/login');
@@ -89,7 +89,7 @@ class AuthController extends Controller {
             $confirm_password = $_POST['confirm_password'];
             
             $errors = [];
-            
+
             // Validate input
             if (empty($username)) {
                 $errors[] = 'Username is required';
@@ -107,7 +107,7 @@ class AuthController extends Controller {
             if ($password !== $confirm_password) {
                 $errors[] = 'Passwords do not match';
             }
-            
+
             if (empty($errors)) {
                 try {
                     // Check if email already exists
@@ -120,7 +120,7 @@ class AuthController extends Controller {
                         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
                         $stmt = $this->db->prepare("INSERT INTO users (username, email, password, created_at) VALUES (?, ?, ?, NOW())");
                         $stmt->execute([$username, $email, $hashed_password]);
-                        
+
                         $_SESSION['success'] = 'Registration successful! Please login.';
                         return $this->redirect('/login');
                     }
@@ -208,15 +208,15 @@ class AuthController extends Controller {
         try {
             $stmt = $this->db->prepare("UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?");
             $stmt->execute([$token, $expires, $user['id']]);
-            
+        
             // TODO: Send reset email
-            
+        
             if ($this->request->isAjax()) {
                 return $this->success([], 'Password reset instructions have been sent to your email');
-            }
-            
+        }
+        
             $_SESSION['success'] = 'Password reset instructions have been sent to your email';
-            return $this->redirect('/login');
+        return $this->redirect('/login');
         } catch (PDOException $e) {
             if ($this->request->isAjax()) {
                 return $this->error('An error occurred. Please try again.');
@@ -241,16 +241,16 @@ class AuthController extends Controller {
             $stmt = $this->db->prepare("SELECT id FROM users WHERE reset_token = ? AND reset_expires > NOW()");
             $stmt->execute([$token]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+        
             if (!$user) {
                 $_SESSION['error'] = 'Invalid or expired reset token';
-                return $this->redirect('/login');
-            }
-            
-            return $this->view('auth/reset-password', [
-                'token' => $token,
-                'csrf_token' => $this->authService->generateCsrfToken()
-            ]);
+            return $this->redirect('/login');
+        }
+        
+        return $this->view('auth/reset-password', [
+            'token' => $token,
+            'csrf_token' => $this->authService->generateCsrfToken()
+        ]);
         } catch (PDOException $e) {
             $_SESSION['error'] = 'An error occurred. Please try again.';
             return $this->redirect('/login');
@@ -279,7 +279,7 @@ class AuthController extends Controller {
         
         if (!isset($data['password']) || empty($data['password'])) {
             return $this->error('Password is required');
-        }
+            }
         
         if (!isset($data['confirm_password']) || $data['password'] !== $data['confirm_password']) {
             return $this->error('Passwords do not match');
@@ -302,8 +302,8 @@ class AuthController extends Controller {
             
             if ($this->request->isAjax()) {
                 return $this->success([], 'Password has been reset successfully');
-            }
-            
+        }
+        
             $_SESSION['success'] = 'Password has been reset successfully';
             return $this->redirect('/login');
         } catch (PDOException $e) {

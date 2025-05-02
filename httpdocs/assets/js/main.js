@@ -157,7 +157,7 @@ function loadMessages(userId) {
             
             messageList.scrollTop = messageList.scrollHeight;
         });
-}
+} 
 
 // Main JavaScript file
 
