@@ -33,20 +33,30 @@ set_exception_handler(function($e) {
 });
 
 try {
+    // Define base path
+    define('BASE_PATH', dirname(__DIR__));
+    
+    // Log the bootstrap file path
+    $bootstrapFile = BASE_PATH . '/app/bootstrap.php';
+    error_log("Attempting to load bootstrap file: " . $bootstrapFile);
+    
+    if (!file_exists($bootstrapFile)) {
+        throw new Exception("Bootstrap file not found at: " . $bootstrapFile);
+    }
+    
     // Load the bootstrap file
-    require_once dirname(__DIR__) . '/app/bootstrap.php';
+    require_once $bootstrapFile;
+    
 } catch (Throwable $e) {
-    // Log the error
-    error_log($e->getMessage());
+    // Log the error with more details
+    error_log("Error in index.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     
     // Show a user-friendly error message
     header('HTTP/1.1 500 Internal Server Error');
     echo 'An error occurred. Please try again later.';
     exit;
 }
-
-// Define the application path
-define('BASE_PATH', dirname(__DIR__));
 
 // Load configuration
 require_once BASE_PATH . '/config/config.php';
