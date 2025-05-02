@@ -1,4 +1,6 @@
 <?php
+namespace App\Controllers;
+
 /**
  * Base Controller class
  * Provides common functionality for all controllers

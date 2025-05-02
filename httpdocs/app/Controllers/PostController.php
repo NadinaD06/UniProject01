@@ -5,7 +5,6 @@
  */
 namespace App\Controllers;
 
-use App\Core\Controller;
 use App\Models\Post;
 use App\Models\User;
 use App\Models\Like;

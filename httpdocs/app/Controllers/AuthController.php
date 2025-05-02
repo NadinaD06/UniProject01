@@ -5,7 +5,6 @@
 
 namespace App\Controllers;
 
-use App\Core\Controller;
 use App\Models\User;
 use App\Services\AuthService;
 use PDO;
