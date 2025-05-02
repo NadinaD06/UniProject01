@@ -1,124 +1,122 @@
-<?php
-/**
- * Messages index view
- * Displays list of conversations
- */
-?>
-
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-4xl mx-auto">
-        <div class="bg-white rounded-lg shadow-md">
-            <!-- Header -->
-            <div class="border-b px-6 py-4">
-                <h2 class="text-xl font-semibold">Messages</h2>
-            </div>
-
-            <!-- Conversations List -->
-            <div class="divide-y">
-                <?php if (empty($conversations['data'])): ?>
-                    <div class="text-center text-gray-500 py-8">
-                        No conversations yet. Start a conversation with someone!
-                    </div>
-                <?php else: ?>
-                    <?php foreach ($conversations['data'] as $conversation): ?>
-                        <a
-                            href="/messages/<?= $conversation['other_user_id'] ?>"
-                            class="block hover:bg-gray-50 transition-colors duration-150"
-                        >
-                            <div class="px-6 py-4 flex items-center">
-                                <!-- User Avatar -->
-                                <img
-                                    src="<?= $conversation['other_image'] ?: '/assets/images/default-avatar.png' ?>"
-                                    alt="<?= htmlspecialchars($conversation['other_username']) ?>"
-                                    class="w-12 h-12 rounded-full mr-4"
-                                >
-
-                                <!-- Conversation Info -->
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between">
-                                        <h3 class="text-sm font-medium text-gray-900 truncate">
-                                            <?= htmlspecialchars($conversation['other_username']) ?>
-                                        </h3>
-                                        <p class="text-xs text-gray-500">
-                                            <?= date('M j, g:i a', strtotime($conversation['last_message_time'])) ?>
-                                        </p>
-                                    </div>
-                                    <p class="text-sm text-gray-500 truncate">
-                                        <?= htmlspecialchars($conversation['last_message']) ?>
-                                    </p>
-                                </div>
-
-                                <!-- Unread Count -->
-                                <?php if ($conversation['unread_count'] > 0): ?>
-                                    <div class="ml-4">
-                                        <span class="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-blue-600 rounded-full">
-                                            <?= $conversation['unread_count'] ?>
-                                        </span>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/assets/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+        <div class="container">
+            <a class="navbar-brand" href="/feed">Social Media</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/feed">Feed</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/messages">Messages</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/notifications">
+                            Notifications
+                            <?php if (isset($unreadNotifications) && $unreadNotifications > 0): ?>
+                                <span class="badge bg-danger"><?php echo $unreadNotifications; ?></span>
+                            <?php endif; ?>
                         </a>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-
-            <!-- Pagination -->
-            <?php if ($conversations['last_page'] > 1): ?>
-                <div class="border-t px-6 py-4">
-                    <nav class="flex justify-center">
-                        <div class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                            <?php if ($conversations['current_page'] > 1): ?>
-                                <a
-                                    href="?page=<?= $conversations['current_page'] - 1 ?>"
-                                    class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-                                >
-                                    Previous
-                                </a>
-                            <?php endif; ?>
-
-                            <?php for ($i = 1; $i <= $conversations['last_page']; $i++): ?>
-                                <a
-                                    href="?page=<?= $i ?>"
-                                    class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium <?= $i === $conversations['current_page'] ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-50' ?>"
-                                >
-                                    <?= $i ?>
-                                </a>
-                            <?php endfor; ?>
-
-                            <?php if ($conversations['current_page'] < $conversations['last_page']): ?>
-                                <a
-                                    href="?page=<?= $conversations['current_page'] + 1 ?>"
-                                    class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-                                >
-                                    Next
-                                </a>
-                            <?php endif; ?>
-                        </div>
-                    </nav>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <div class="dropdown">
+                        <button class="btn btn-link text-dark dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                            <img src="<?php echo htmlspecialchars($user['profile_image'] ?? '/assets/images/default-avatar.png'); ?>" 
+                                 alt="Profile" 
+                                 class="rounded-circle"
+                                 width="32" 
+                                 height="32">
+                            <?php echo htmlspecialchars($user['username']); ?>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/profile">Profile</a></li>
+                            <li><a class="dropdown-item" href="/settings">Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/logout">Logout</a></li>
+                        </ul>
+                    </div>
                 </div>
-            <?php endif; ?>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container py-4">
+        <div class="row">
+            <div class="col-md-4">
+                <!-- Conversations List -->
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="card-title mb-0">Messages</h5>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <?php if (empty($conversations)): ?>
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-comments fa-3x mb-3"></i>
+                                <p>No conversations yet.</p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($conversations as $conversation): ?>
+                                <a href="/messages/<?php echo htmlspecialchars($conversation['username']); ?>" 
+                                   class="list-group-item list-group-item-action">
+                                    <div class="d-flex align-items-center">
+                                        <img src="<?php echo htmlspecialchars($conversation['profile_image'] ?? '/assets/images/default-avatar.png'); ?>" 
+                                             alt="<?php echo htmlspecialchars($conversation['username']); ?>" 
+                                             class="rounded-circle me-3"
+                                             width="48" 
+                                             height="48">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0"><?php echo htmlspecialchars($conversation['username']); ?></h6>
+                                                <small class="text-muted">
+                                                    <?php echo date('M j', strtotime($conversation['last_message_time'])); ?>
+                                                </small>
+                                            </div>
+                                            <p class="text-muted mb-0 small text-truncate">
+                                                <?php echo htmlspecialchars($conversation['last_message']); ?>
+                                            </p>
+                                        </div>
+                                        <?php if ($conversation['unread_count'] > 0): ?>
+                                            <span class="badge bg-primary rounded-pill ms-2">
+                                                <?php echo $conversation['unread_count']; ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <!-- Welcome Message -->
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                        <i class="fas fa-comments fa-4x text-muted mb-3"></i>
+                        <h4>Your Messages</h4>
+                        <p class="text-muted">Select a conversation or start a new one</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Update unread count in navbar
-    function updateUnreadCount() {
-        fetch('/api/messages/unread-count')
-            .then(response => response.json())
-            .then(data => {
-                const badge = document.getElementById('unreadMessagesBadge');
-                if (badge) {
-                    badge.textContent = data.count;
-                    badge.classList.toggle('hidden', data.count === 0);
-                }
-            })
-            .catch(error => console.error('Error:', error));
-    }
-
-    // Update unread count every 30 seconds
-    updateUnreadCount();
-    setInterval(updateUnreadCount, 30000);
-});
-</script> 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</body>
+</html> 

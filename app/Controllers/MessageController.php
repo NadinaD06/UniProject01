@@ -16,10 +16,10 @@ class MessageController extends Controller {
     private $userModel;
     private $webSocket;
     
-    public function __construct() {
-        parent::__construct();
-        $this->messageModel = new Message();
-        $this->userModel = new User();
+    public function __construct($pdo) {
+        parent::__construct($pdo);
+        $this->messageModel = new Message($pdo);
+        $this->userModel = new User($pdo);
         
         // Initialize WebSocket service if WebSockets are enabled
         if (defined('WEBSOCKET_ENABLED') && WEBSOCKET_ENABLED) {
@@ -42,9 +42,13 @@ class MessageController extends Controller {
         // Get user's conversations
         $conversations = $this->messageModel->getUserConversations($userId, $page, $perPage);
         
+        // Get unread count
+        $unreadCount = $this->messageModel->getUnreadCount($userId);
+        
         $this->render('messages/index', [
             'conversations' => $conversations,
-            'user' => $this->userModel->find($userId)
+            'user' => $this->userModel->find($userId),
+            'unreadCount' => $unreadCount
         ]);
     }
     
@@ -53,17 +57,12 @@ class MessageController extends Controller {
      * 
      * @return string Rendered view
      */
-    public function show() {
+    public function show($username) {
         $this->requireLogin();
         
-        $otherUserId = (int) $this->get('id');
-        if (!$otherUserId) {
-            $this->redirect('/messages');
-        }
-        
-        // Check if other user exists
-        $otherUser = $this->userModel->find($otherUserId);
-        if (!$otherUser) {
+        // Get user data
+        $user = $this->userModel->findByUsername($username);
+        if (!$user) {
             $this->setFlash('error', 'User not found.');
             $this->redirect('/messages');
         }
@@ -73,14 +72,14 @@ class MessageController extends Controller {
         $userId = $this->getCurrentUserId();
         
         // Get conversation
-        $conversation = $this->messageModel->getConversation($userId, $otherUserId, $page, $perPage);
+        $conversation = $this->messageModel->getConversation($userId, $user['id'], $page, $perPage);
         
         // Mark messages as read
-        $this->messageModel->markAsRead($otherUserId, $userId);
+        $this->messageModel->markAsRead($user['id'], $userId);
         
         $this->render('messages/show', [
             'conversation' => $conversation,
-            'otherUser' => $otherUser,
+            'otherUser' => $user,
             'user' => $this->userModel->find($userId)
         ]);
     }
@@ -108,6 +107,12 @@ class MessageController extends Controller {
         
         if (!empty($errors)) {
             $this->json(['error' => 'Please enter a valid message.'], 400);
+        }
+        
+        // Check if receiver exists
+        $receiver = $this->userModel->findById($receiverId);
+        if (!$receiver) {
+            $this->json(['error' => 'User not found'], 404);
         }
         
         try {

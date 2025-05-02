@@ -71,4 +71,67 @@ a:hover {
     .card-body {
         padding: 1.5rem;
     }
+}
+
+/* Messages */
+.messages-container {
+    max-height: 500px;
+    padding: 1rem;
+}
+
+.message {
+    max-width: 75%;
+    margin-bottom: 1rem;
+}
+
+.message-sent {
+    margin-left: auto;
+}
+
+.message-received {
+    margin-right: auto;
+}
+
+.message-content {
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    position: relative;
+}
+
+.message-sent .message-content {
+    background-color: #007bff;
+    color: white;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.message-received .message-content {
+    background-color: #f8f9fa;
+    border-bottom-left-radius: 0.25rem;
+}
+
+.message-sent .message-content small {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.message-form {
+    border-top: 1px solid #dee2e6;
+    padding-top: 1rem;
+}
+
+.message-form textarea {
+    resize: none;
+    max-height: 120px;
+    border-radius: 1.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.message-form .btn {
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.5rem;
 } 
