@@ -5,7 +5,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // Load configuration
-require_once __DIR__ . '/../../config/config.php';
+require_once dirname(dirname(dirname(__DIR__))) . '/config/config.php';
 
 try {
     // Connect to MySQL database
@@ -23,6 +23,8 @@ try {
     echo "Database connection successful!<br>";
     echo "Connected to database: " . DB_NAME . "<br>";
     echo "Using host: " . DB_HOST . "<br>";
+    echo "Base path: " . BASE_PATH . "<br>";
+    echo "App path: " . APP_PATH . "<br>";
     
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());

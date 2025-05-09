@@ -1,11 +1,8 @@
 <?php
-// httpdocs/index.php - Fix the routing for authentication
+// httpdocs/index.php - Main entry point
 
-// Define base paths
-define('ROOT_PATH', __DIR__);
-define('APP_PATH', ROOT_PATH . '/app');
-define('CONFIG_PATH', dirname(ROOT_PATH) . '/config');
-define('VIEWS_PATH', APP_PATH . '/Views');
+// Load configuration first
+require_once dirname(__DIR__) . '/config/config.php';
 
 // Error handling 
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
@@ -52,7 +49,7 @@ switch ($request_uri) {
     case '/':
     case '/home':
         require_once APP_PATH . '/Controllers/HomeController.php';
-        $controller = new HomeController();
+        $controller = new App\Controllers\HomeController($pdo);
         $controller->index();
         break;
         
