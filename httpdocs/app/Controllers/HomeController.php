@@ -8,13 +8,16 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\Post;
+use App\Services\AuthService;
 
 class HomeController extends Controller {
     private $post;
+    private $authService;
     
-    public function __construct() {
-        parent::__construct();
+    public function __construct(\PDO $db) {
+        parent::__construct($db);
         $this->post = new Post();
+        $this->authService = new AuthService();
     }
     
     /**
@@ -23,16 +26,15 @@ class HomeController extends Controller {
      * @return string Rendered view
      */
     public function index() {
-        // If user is authenticated, redirect to feed
-        if ($this->auth->check()) {
+        // If user is logged in, redirect to feed
+        if ($this->authService->check()) {
             return $this->redirect('/feed');
         }
         
-        // Get some featured artworks to display on the home page
-        $featuredPosts = $this->post->getFeaturedPosts(6);
-        
-        return $this->view('home/index', [
-            'featured_posts' => $featuredPosts
+        // For guests, show the home page
+        return $this->render('home', [
+            'title' => 'Welcome to UniSocial',
+            'description' => 'Connect with university students and share your experiences'
         ]);
     }
     
