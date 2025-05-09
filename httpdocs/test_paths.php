@@ -1,18 +1,18 @@
 <?php
-// Enable error reporting
+// Enable error reporting for debugging
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // Load configuration
-$configFile = dirname(dirname(__FILE__)) . '/config/config.php';
+$configFile = '/var/www/vhosts/s4413713-ctxxxx.uogs.co.uk/config/config.php';
 if (!file_exists($configFile)) {
     die("Configuration file not found at: " . $configFile);
 }
 require_once $configFile;
 
 // Display all defined paths
-echo "<h2>Path Information:</h2>";
+echo "<h2>Defined Paths:</h2>";
 echo "<pre>";
 echo "BASE_PATH: " . BASE_PATH . "\n";
 echo "HTTPDOCS_PATH: " . HTTPDOCS_PATH . "\n";
