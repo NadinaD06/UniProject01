@@ -5,7 +5,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // Load configuration
-require_once dirname(dirname(dirname(__DIR__))) . '/config/config.php';
+require_once(BASE_PATH . '/config/config.php');
 
 try {
     // Connect to MySQL database
