@@ -1,7 +1,7 @@
 <?php
 // Define base paths first
-define('BASE_PATH', dirname(__DIR__));  // Points to the root directory
-define('HTTPDOCS_PATH', BASE_PATH . '/');
+define('BASE_PATH', realpath(dirname(__DIR__)));  // This will resolve the correct parent directory
+define('HTTPDOCS_PATH', BASE_PATH . '/httpdocs');  // Add httpdocs explicitly
 define('APP_PATH', HTTPDOCS_PATH . '/app');
 define('CONFIG_PATH', BASE_PATH . '/config');
 
