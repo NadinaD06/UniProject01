@@ -7,7 +7,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // Load configuration first
-$configFile = '/var/www/vhosts/s4413713-ctxxxx.uogs.co.uk/config/config.php';
+$configFile = __DIR__ . '/config/config.php';
 if (!file_exists($configFile)) {
     die("Configuration file not found at: " . $configFile);
 }
