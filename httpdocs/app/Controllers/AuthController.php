@@ -6,6 +6,7 @@
 namespace App\Controllers;
 
 use App\Models\User;
+use App\Core\Controller; // Add this line to import the base Controller class
 use PDO;
 use PDOException;
 
@@ -17,6 +18,7 @@ class AuthController extends Controller {
         $this->user = new User($db);
     }
     
+
     /**
      * Process login request
      */
