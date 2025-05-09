@@ -1,4 +1,41 @@
-<!DOCTYPE html>
+<?php
+// filepath: /Users/nadinad/UniProject01/httpdocs/index.php
+switch ($request_uri) {
+    case '/feed':
+        require_once APP_PATH . '/Controllers/PostController.php';
+        $controller = new PostController();
+        $controller->index();
+        break;
+    case '/profile':
+        require_once APP_PATH . '/Controllers/ProfileController.php';
+        $controller = new ProfileController();
+        $controller->show();
+        break;
+    // Add other routes here
+}<?php
+$request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+
+switch ($request_uri) {
+    case '/feed':
+        require_once APP_PATH . '/Controllers/PostController.php';
+        $controller = new PostController();
+        $controller->index();
+        break;
+    case '/profile':
+        require_once APP_PATH . '/Controllers/ProfileController.php';
+        $controller = new ProfileController();
+        $controller->show();
+        break;
+    case '/admin':
+        require_once APP_PATH . '/Controllers/AdminController.php';
+        $controller = new AdminController();
+        $controller->dashboard();
+        break;
+    default:
+        http_response_code(404);
+        echo "Page not found.";
+        break;
+}<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">

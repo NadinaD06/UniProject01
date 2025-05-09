@@ -1,13 +1,13 @@
 <?php
-/**
- * Front controller - All requests are routed through this file
- */
+// httpdocs/index.php - Fix the routing for authentication
 
-// Error handling
-error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
-ini_set('display_errors', 1);
+// Define base paths
+define('ROOT_PATH', __DIR__);
+define('APP_PATH', ROOT_PATH . '/app');
+define('CONFIG_PATH', dirname(ROOT_PATH) . '/config');
+define('VIEWS_PATH', APP_PATH . '/Views');
 
-// Set error handler
+// Error handling 
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
     if (!(error_reporting() & $errno)) {
         return false;
@@ -38,45 +38,11 @@ set_exception_handler(function($e) {
     exit;
 });
 
-try {
-    // Define base paths
-    define('ROOT_PATH', __DIR__);
-    define('APP_PATH', ROOT_PATH . '/app');
-    define('CONFIG_PATH', dirname(ROOT_PATH) . '/config');
-    
-    // Log the bootstrap file path
-    $bootstrapFile = APP_PATH . '/bootstrap.php';
-    error_log("Attempting to load bootstrap file: " . $bootstrapFile);
-    
-    if (!file_exists($bootstrapFile)) {
-        throw new Exception("Bootstrap file not found at: " . $bootstrapFile);
-    }
-    
-    // Load the bootstrap file
-    require_once $bootstrapFile;
-    
-} catch (Throwable $e) {
-    // Log the error with more details
-    error_log("Error in index.php: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
-    
-    // Show detailed error message
-    header('HTTP/1.1 500 Internal Server Error');
-    echo '<h1>Error Details:</h1>';
-    echo '<pre>';
-    echo 'Message: ' . htmlspecialchars($e->getMessage()) . "\n";
-    echo 'File: ' . htmlspecialchars($e->getFile()) . "\n";
-    echo 'Line: ' . $e->getLine() . "\n";
-    echo 'Trace: ' . htmlspecialchars($e->getTraceAsString());
-    echo '</pre>';
-    exit;
-}
-
-// Load configuration
-require_once CONFIG_PATH . '/config.php';
-
 // Start session
 session_start();
+
+// Load database connection
+require_once APP_PATH . '/get_db_connection.php';
 
 // Get the request URI
 $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -92,22 +58,33 @@ switch ($request_uri) {
         
     case '/login':
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Handle login POST request
             require_once APP_PATH . '/Controllers/AuthController.php';
-            $controller = new AuthController();
+            $controller = new App\Controllers\AuthController($pdo);
             $controller->login();
         } else {
+            // Display login form
             require_once APP_PATH . '/Views/auth/login.php';
         }
         break;
         
     case '/register':
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Handle registration POST request
             require_once APP_PATH . '/Controllers/AuthController.php';
-            $controller = new AuthController();
+            $controller = new App\Controllers\AuthController($pdo);
             $controller->register();
         } else {
+            // Display registration form
             require_once APP_PATH . '/Views/auth/register.php';
         }
+        break;
+    
+    case '/logout':
+        // Handle logout
+        require_once APP_PATH . '/Controllers/AuthController.php';
+        $controller = new App\Controllers\AuthController($pdo);
+        $controller->logout();
         break;
         
     default:

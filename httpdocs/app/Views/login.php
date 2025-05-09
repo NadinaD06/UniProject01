@@ -1,84 +1,30 @@
 <?php
-// Enable error reporting
+// Enable error reporting for debugging
+// You can disable this in production
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Start session
-session_start();
-
-// Load database connection
-require_once 'get_db_connection.php';
-
-// Redirect if already logged in
-if (isset($_SESSION['user_id'])) {
-    header('Location: index.php');
-    exit;
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
 
-$error = '';
+// Get any error messages or success messages stored in session
+$errors = $_SESSION['errors'] ?? [];
+$success = $_SESSION['success'] ?? '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
-
-    if (empty($username) || empty($password)) {
-        $error = "All fields are required";
-    } else {
-        try {
-            // Get user
-            $stmt = $pdo->prepare("
-                SELECT id, username, password, role, is_blocked, block_until 
-                FROM users 
-                WHERE username = ?
-            ");
-            $stmt->execute([$username]);
-            $user = $stmt->fetch();
-
-            if ($user && password_verify($password, $user['password'])) {
-                // Check if user is blocked
-                if ($user['is_blocked']) {
-                    if ($user['block_until'] && strtotime($user['block_until']) > time()) {
-                        $error = "Your account is blocked until " . date('Y-m-d H:i:s', strtotime($user['block_until']));
-                    } else {
-                        // Unblock user if block period has expired
-                        $stmt = $pdo->prepare("
-                            UPDATE users 
-                            SET is_blocked = FALSE, block_until = NULL 
-                            WHERE id = ?
-                        ");
-                        $stmt->execute([$user['id']]);
-                    }
-                }
-
-                if (empty($error)) {
-                    // Set session variables
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['username'] = $user['username'];
-                    $_SESSION['role'] = $user['role'];
-
-                    // Redirect based on role
-                    if ($user['role'] === 'admin') {
-                        header('Location: admin/dashboard.php');
-                    } else {
-                        header('Location: index.php');
-                    }
-                    exit;
-                }
-            } else {
-                $error = "Invalid username or password";
-            }
-        } catch (PDOException $e) {
-            $error = "Login failed. Please try again.";
-        }
-    }
-}
+// Clear session data after retrieving it
+unset($_SESSION['errors'], $_SESSION['success']);
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
     <title>Login - Social Media Site</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -108,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-bottom: 5px;
             color: #333;
         }
-        input[type="text"],
+        input[type="email"],
         input[type="password"] {
             width: 100%;
             padding: 8px;
@@ -133,6 +79,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: #dc3545;
             margin-bottom: 15px;
         }
+        .success {
+            color: #28a745;
+            margin-bottom: 15px;
+        }
         .register-link {
             text-align: center;
             margin-top: 15px;
@@ -150,14 +100,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="container">
         <h1>Login</h1>
         
-        <?php if ($error): ?>
-            <div class="error"><?php echo htmlspecialchars($error); ?></div>
+        <?php if (!empty($errors)): ?>
+            <div class="error">
+                <ul>
+                    <?php foreach ($errors as $error): ?>
+                        <li><?php echo htmlspecialchars($error); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
         <?php endif; ?>
         
-        <form method="POST" action="">
+        <?php if ($success): ?>
+            <div class="success"><?php echo htmlspecialchars($success); ?></div>
+        <?php endif; ?>
+        
+        <form method="POST" action="/login">
             <div class="form-group">
-                <label for="username">Username:</label>
-                <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>" required>
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
             </div>
             
             <div class="form-group">
@@ -169,8 +129,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         
         <div class="register-link">
-            Don't have an account? <a href="register.php">Register here</a>
+            Don't have an account? <a href="/register">Register here</a>
         </div>
     </div>
 </body>
-</html> 
+</html>
