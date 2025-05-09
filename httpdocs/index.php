@@ -1,8 +1,17 @@
 <?php
 // httpdocs/index.php - Main entry point
 
+// Enable error reporting for debugging
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 // Load configuration first
-require_once dirname(__DIR__) . '/config/config.php';
+$configFile = dirname(__DIR__) . '/config/config.php';
+if (!file_exists($configFile)) {
+    die("Configuration file not found at: " . $configFile);
+}
+require_once $configFile;
 
 // Error handling 
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
