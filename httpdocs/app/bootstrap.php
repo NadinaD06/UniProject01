@@ -17,7 +17,7 @@ error_log("APP_PATH: " . APP_PATH);
 error_log("CONFIG_PATH: " . CONFIG_PATH);
 
 // Load configuration first
-$configFile = CONFIG_PATH . '/config/config.php';
+$configFile = CONFIG_PATH . '/config.php';
 error_log("Loading config file: " . $configFile);
 if (!file_exists($configFile)) {
     throw new Exception("Configuration file not found at: " . $configFile);
