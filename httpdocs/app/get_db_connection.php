@@ -1,5 +1,11 @@
 <?php
 
+// Define BASE_PATH if not already defined
+if (!defined('BASE_PATH')) {
+    define('BASE_PATH', dirname(dirname(__FILE__)));
+}
+
+
 $configPath = dirname(__DIR__, 2) . '/config/config.php';
 
 if (!file_exists($configPath)) {
