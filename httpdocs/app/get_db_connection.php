@@ -1,30 +1,29 @@
 <?php
+// Enable error reporting
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
-// Define BASE_PATH if not already defined
-if (!defined('BASE_PATH')) {
-    define('BASE_PATH', dirname(dirname(__FILE__)));
-}
-
-
-$configPath = dirname(__DIR__, 2) . '/config/config.php';
-
-if (!file_exists($configPath)) {
-    throw new Exception("Configuration file not found at: " . $configPath);
-}
-
-$config = require $configPath;
+// Load configuration
+require_once __DIR__ . '/../../config/config.php';
 
 try {
+    // Connect to MySQL database
     $pdo = new PDO(
-        "mysql:host=" . $config['db_host'] . ";dbname=" . $config['db_name'] . ";charset=utf8mb4",
-        $config['db_user'],
-        $config['db_pass'],
+        "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+        DB_USER,
+        DB_PASS,
         [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_EMULATE_PREPARES => false
         ]
     );
+    
+    echo "Database connection successful!<br>";
+    echo "Connected to database: " . DB_NAME . "<br>";
+    echo "Using host: " . DB_HOST . "<br>";
+    
 } catch (PDOException $e) {
-    throw new Exception("Database connection failed: " . $e->getMessage());
+    die("Database connection failed: " . $e->getMessage());
 }
