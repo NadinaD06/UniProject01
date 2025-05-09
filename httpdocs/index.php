@@ -3,6 +3,14 @@
  * Front controller - All requests are routed through this file
  */
 
+ // Define base paths
+define('ROOT_PATH', __DIR__);
+define('BASE_PATH', dirname(ROOT_PATH)); // Add this line
+define('APP_PATH', ROOT_PATH . '/app');
+define('CONFIG_PATH', BASE_PATH . '/config'); // Update this to use BASE_PATH
+define('VIEWS_PATH', APP_PATH . '/Views');
+define('PUBLIC_PATH', ROOT_PATH . '/public');
+define('UPLOAD_PATH', PUBLIC_PATH . '/uploads');
 // Error handling
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
 ini_set('display_errors', 1);

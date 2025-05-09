@@ -5,12 +5,12 @@
 
 // Define base paths
 define('ROOT_PATH', dirname(__DIR__));
+define('BASE_PATH', dirname(ROOT_PATH)); // Add this line
 define('APP_PATH', ROOT_PATH . '/app');
-define('CONFIG_PATH', dirname(ROOT_PATH) . '/config');
+define('CONFIG_PATH', BASE_PATH . '/config'); // Update this to use BASE_PATH
 define('VIEWS_PATH', APP_PATH . '/Views');
 define('PUBLIC_PATH', ROOT_PATH . '/public');
 define('UPLOAD_PATH', PUBLIC_PATH . '/uploads');
-
 // Log paths for debugging
 error_log("ROOT_PATH: " . ROOT_PATH);
 error_log("APP_PATH: " . APP_PATH);
