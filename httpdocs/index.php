@@ -42,7 +42,7 @@ set_exception_handler(function($e) {
 session_start();
 
 // Load database connection
-require_once __DIR__ . '/app/get_db_connection.php';
+require_once APP_PATH . '/get_db_connection.php';
 
 // Get the request URI
 $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
