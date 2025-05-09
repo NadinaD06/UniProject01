@@ -1,62 +1,31 @@
 <?php
-// Enable error reporting
+// Enable error reporting for debugging
+// You can disable this in production
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Load database connection
-require_once 'get_db_connection.php';
-
-$error = '';
-$success = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $confirm_password = $_POST['confirm_password'] ?? '';
-
-    // Validate input
-    if (empty($username) || empty($email) || empty($password) || empty($confirm_password)) {
-        $error = "All fields are required";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = "Invalid email format";
-    } elseif (strlen($password) < 8) {
-        $error = "Password must be at least 8 characters long";
-    } elseif ($password !== $confirm_password) {
-        $error = "Passwords do not match";
-    } else {
-        try {
-            // Check if username or email already exists
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
-            $stmt->execute([$username, $email]);
-            
-            if ($stmt->rowCount() > 0) {
-                $error = "Username or email already exists";
-            } else {
-                // Create new user
-                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                
-                $stmt = $pdo->prepare("
-                    INSERT INTO users (username, email, password)
-                    VALUES (?, ?, ?)
-                ");
-                
-                $stmt->execute([$username, $email, $hashed_password]);
-                
-                $success = "Registration successful! You can now login.";
-            }
-        } catch (PDOException $e) {
-            $error = "Registration failed. Please try again.";
-        }
-    }
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
+
+// Get any error messages or form data stored in session
+$errors = $_SESSION['errors'] ?? [];
+$formData = $_SESSION['form_data'] ?? [];
+$success = $_SESSION['success'] ?? '';
+
+// Clear session data after retrieving it
+unset($_SESSION['errors'], $_SESSION['form_data'], $_SESSION['success']);
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
     <title>Register - Social Media Site</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -133,28 +102,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="container">
         <h1>Register</h1>
         
-        <?php if ($error): ?>
-            <div class="error"><?php echo htmlspecialchars($error); ?></div>
+        <?php if (!empty($errors)): ?>
+            <div class="error">
+                <ul>
+                    <?php foreach ($errors as $error): ?>
+                        <li><?php echo htmlspecialchars($error); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
         <?php endif; ?>
         
         <?php if ($success): ?>
             <div class="success"><?php echo htmlspecialchars($success); ?></div>
         <?php endif; ?>
         
-        <form method="POST" action="">
+        <form method="POST" action="/register">
             <div class="form-group">
                 <label for="username">Username:</label>
-                <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>" required>
+                <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($formData['username'] ?? ''); ?>" required>
             </div>
             
             <div class="form-group">
                 <label for="email">Email:</label>
-                <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>" required>
+                <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($formData['email'] ?? ''); ?>" required>
             </div>
             
             <div class="form-group">
                 <label for="password">Password:</label>
                 <input type="password" id="password" name="password" required>
+                <small>Password must be at least 6 characters</small>
             </div>
             
             <div class="form-group">
@@ -166,8 +142,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         
         <div class="login-link">
-            Already have an account? <a href="login.php">Login here</a>
+            Already have an account? <a href="/login">Login here</a>
         </div>
     </div>
+
+    <script>
+        // Simple form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+            
+            if (password !== confirmPassword) {
+                e.preventDefault();
+                alert('Passwords do not match!');
+            }
+            
+            if (password.length < 6) {
+                e.preventDefault();
+                alert('Password must be at least 6 characters long!');
+            }
+        });
+    </script>
 </body>
-</html> 
+</html>
