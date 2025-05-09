@@ -7,7 +7,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // Load configuration first
-$configFile = include_once 'config/config.php';
+$configFile = dirname(__FILE__) . '/config/config.php';
 if (!file_exists($configFile)) {
     die("Configuration file not found at: " . $configFile);
 }
